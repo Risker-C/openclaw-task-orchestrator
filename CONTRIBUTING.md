@@ -1,212 +1,184 @@
-# 贡献指南
+# Contributing to Task Orchestrator
 
-感谢你对OpenClaw Task Orchestrator项目的关注！我们欢迎所有形式的贡献。
+欢迎为 Task Orchestrator 项目贡献代码！本文档将指导您如何参与项目开发。
 
-## 🚀 快速开始
+## 🎯 项目理念
 
-### 开发环境设置
-1. Fork项目到你的GitHub账户
-2. 克隆你的fork到本地
-```bash
-git clone https://github.com/YOUR_USERNAME/openclaw-task-orchestrator.git
-cd openclaw-task-orchestrator
+Task Orchestrator 是一个基于 .md 文档驱动的 OpenClaw Skill，专注于 AI 驱动的任务编排。
+
+### 核心原则
+- **文档驱动**: 主要逻辑通过 .md 文档指导
+- **OpenClaw 原生**: 充分利用 OpenClaw 现有能力
+- **必要脚本**: 只有复杂技术实现才使用 Python 脚本
+- **简洁专一**: 专注于任务编排核心价值
+
+## 📋 开发流程
+
+### 1. Issue 生命周期
+
+#### 创建阶段
+- **标题格式**: `🔧 功能描述` 或 `📝 文档描述` 或 `🐛 问题描述`
+- **内容结构**: 
+  - 任务描述
+  - 目标
+  - 技术要求
+  - 验收标准
+  - 时间安排
+- **标记**: 优先级 (High/Medium/Low) + 复杂度 (L1/L2/L3)
+
+#### 执行阶段
+- **开始标记**: 在 Issue 中添加开始时间注释
+- **进度更新**: 定期更新执行状态和遇到的问题
+- **代码提交**: 每个提交都要关联 Issue 编号
+
+#### 关闭阶段
+- **验收确认**: 所有验收标准都已满足
+- **提交记录**: 必须有对应的 Git 提交记录
+- **文档更新**: 相关文档已同步更新
+- **关闭说明**: 简要说明完成情况
+
+### 2. Git 提交规范
+
+#### 提交消息格式
+```
+<type>(<scope>): <subject>
+
+<body>
+
+Closes #<issue-number>
 ```
 
-3. 创建开发分支
-```bash
-git checkout -b feature/your-feature-name
+#### 类型说明
+- **feat**: 新功能
+- **fix**: 修复 bug
+- **docs**: 文档更新
+- **refactor**: 代码重构
+- **test**: 测试相关
+- **chore**: 构建过程或辅助工具的变动
+
+#### 示例
+```
+docs(core): 创建 SKILL.md 核心文档
+
+- 添加任务编排工作流程说明
+- 定义 L1/L2/L3 复杂度标准
+- 提供 Agent 选择规则
+
+Closes #24
 ```
 
-4. 安装开发依赖
-```bash
-pip install -r requirements.txt
-pip install -r requirements-dev.txt  # 开发依赖
-```
+### 3. 分支管理
 
-## 📋 Issues驱动开发
+#### 分支命名规范
+- **feature/issue-{number}-{description}**: 功能开发
+- **docs/issue-{number}-{description}**: 文档更新
+- **fix/issue-{number}-{description}**: 问题修复
 
-### 选择Issue
-1. 浏览 [Issues列表](https://github.com/Risker-C/openclaw-task-orchestrator/issues)
-2. 选择标有 `good-first-issue` 的Issue作为入门
-3. 在Issue中评论表明你想要处理这个问题
-4. 等待维护者分配给你
+#### 工作流程
+1. 从 `main` 分支创建 feature 分支
+2. 在 feature 分支上开发
+3. 提交时关联 Issue 编号
+4. 创建 Pull Request
+5. 代码审查通过后合并到 `main`
+6. 删除 feature 分支
 
-### Issue类型
-- 🐛 **Bug修复**: 修复现有功能的问题
-- 🚀 **新功能**: 实现新的功能特性
-- 📚 **文档**: 改进文档和示例
-- 🔧 **重构**: 代码结构优化
-- 🧪 **测试**: 增加或改进测试
-
-## 💻 开发流程
-
-### 1. 代码规范
-- 使用 `black` 进行代码格式化
-- 使用 `isort` 进行import排序
-- 使用 `flake8` 进行代码检查
-- 遵循 PEP 8 编码规范
-
-```bash
-# 格式化代码
-black src/
-isort src/
-
-# 检查代码
-flake8 src/
-```
-
-### 2. 提交规范
-使用 [Conventional Commits](https://www.conventionalcommits.org/) 格式：
-
-```
-<type>[optional scope]: <description>
-
-[optional body]
-
-[optional footer(s)]
-```
-
-**类型说明**:
-- `feat`: 新功能
-- `fix`: Bug修复
-- `docs`: 文档更新
-- `style`: 代码格式化
-- `refactor`: 重构
-- `test`: 测试相关
-- `chore`: 构建过程或辅助工具的变动
-
-**示例**:
-```
-feat(scheduler): add intelligent task routing
-
-- Implement L1/L2/L3 complexity detection
-- Add agent capability matching
-- Support manual complexity override
-
-Closes #15
-```
-
-### 3. 测试要求
-- 新功能必须包含测试
-- Bug修复必须包含回归测试
-- 测试覆盖率不能降低
-
-```bash
-# 运行测试
-pytest tests/
-
-# 检查覆盖率
-pytest --cov=src/ tests/
-```
-
-### 4. 文档更新
-- 新功能需要更新相关文档
-- API变更需要更新API文档
-- 重要变更需要更新README
-
-## 🔄 Pull Request流程
-
-### 1. 创建PR
-- 确保你的分支是最新的
-- 推送到你的fork
-- 创建Pull Request到main分支
-
-### 2. PR描述模板
-```markdown
-## 📋 变更概述
-简洁描述这个PR的主要变更。
-
-## 🔗 关联Issue
-Closes #issue_number
-
-## 🧪 测试
-- [ ] 单元测试通过
-- [ ] 集成测试通过
-- [ ] 手动测试完成
-
-## 📚 文档
-- [ ] 代码注释完整
-- [ ] API文档已更新
-- [ ] README已更新（如需要）
-
-## ✅ 检查清单
-- [ ] 代码遵循项目规范
-- [ ] 提交信息符合规范
-- [ ] 没有合并冲突
-- [ ] CI检查通过
-```
-
-### 3. 代码审查
-- 所有PR需要至少一个维护者审查
-- 解决所有审查意见
-- 确保CI检查通过
-
-### 4. 合并
-- 使用 "Squash and merge" 合并PR
-- 删除feature分支
-
-## 🏷️ 标签系统
-
-### 优先级标签
-- `priority/critical`: 紧急问题，需要立即处理
-- `priority/high`: 高优先级，下个版本必须包含
-- `priority/medium`: 中等优先级，正常排期
-- `priority/low`: 低优先级，有时间再处理
-
-### 难度标签
-- `difficulty/beginner`: 适合新手，1-2小时
-- `difficulty/intermediate`: 中等难度，半天到1天
-- `difficulty/advanced`: 高难度，需要深入了解项目
-
-### 类型标签
-- `type/bug`: Bug修复
-- `type/feature`: 新功能
-- `type/enhancement`: 功能改进
-- `type/documentation`: 文档相关
-- `type/question`: 问题咨询
-
-## 🎯 发布流程
+## 📊 版本管理
 
 ### 版本号规范
-遵循 [Semantic Versioning](https://semver.org/):
-- `MAJOR.MINOR.PATCH`
-- MAJOR: 不兼容的API变更
-- MINOR: 向后兼容的功能新增
-- PATCH: 向后兼容的Bug修复
+- **v0.0.x**: 初始开发版本，功能验证
+- **v0.x.0**: 功能版本，新特性添加
+- **v1.0.0**: 正式发布版本，生产就绪
 
-### 发布检查清单
-- [ ] 所有测试通过
-- [ ] 文档已更新
-- [ ] CHANGELOG已更新
-- [ ] 版本号已更新
-- [ ] 创建GitHub Release
-- [ ] 发布到PyPI（如适用）
+### 里程碑管理
+- **v0.0.1**: 基础文档 + 脚本实现
+- **v0.1.0**: 功能稳定 + 用户反馈整合
+- **v0.2.0**: 性能优化 + 体验改进
 
-## 🤝 社区准则
+## 🔧 开发环境
 
-### 行为准则
-- 尊重所有贡献者
-- 建设性的反馈和讨论
-- 包容不同的观点和经验
-- 专注于对项目最有利的事情
+### 项目结构
+```
+~/.openclaw/workspace/skills/task-orchestrator/
+├── SKILL.md                    # 核心 Skill 文档
+├── README.md                   # 项目说明
+├── CONTRIBUTING.md             # 开发规范 (本文件)
+├── complexity-guide.md         # 复杂度判断指南
+├── agent-selection.md          # Agent 选择规则
+├── execution-templates.md      # 执行模板
+├── feishu-config.md           # 飞书配置说明
+├── examples.md                # 使用示例
+└── scripts/                   # 必要脚本
+    ├── feishu-sync.py         # 飞书同步
+    └── feishu-notify.py       # 消息通知
+```
 
-### 沟通渠道
-- **Issues**: 功能请求、Bug报告
-- **Discussions**: 一般讨论、问题咨询
-- **PR**: 代码审查、技术讨论
+### 开发要求
+- **Python 3.8+**: 脚本开发环境
+- **OpenClaw**: 运行环境
+- **GitHub CLI**: 项目管理工具
+- **Markdown 编辑器**: 文档编写
 
-## 📞 获取帮助
+## 📝 文档规范
 
-如果你需要帮助：
-1. 查看现有的Issues和Discussions
-2. 创建新的Discussion提问
-3. 在相关Issue中评论
-4. 联系项目维护者
+### Markdown 文档
+- 使用清晰的标题层级
+- 提供丰富的示例
+- 包含版本信息
+- 保持内容更新
 
-## 🙏 致谢
+### 代码注释
+- Python 脚本使用 docstring
+- 关键逻辑添加行内注释
+- 配置文件添加说明注释
 
-感谢所有为项目做出贡献的开发者！你们的努力让这个项目变得更好。
+## 🧪 质量保证
+
+### 代码质量
+- 遵循 PEP 8 Python 代码规范
+- 函数和类添加类型提示
+- 错误处理要完善
+- 日志记录要详细
+
+### 文档质量
+- 结构清晰易懂
+- 示例丰富实用
+- 更新及时准确
+- 版本控制规范
+
+### 测试验证
+- 功能测试通过
+- 边界情况考虑
+- 错误场景处理
+- 用户体验良好
+
+## 🤝 贡献方式
+
+### 1. 报告问题
+- 使用 GitHub Issues 报告 bug
+- 提供详细的复现步骤
+- 包含环境信息和错误日志
+
+### 2. 提出建议
+- 使用 GitHub Issues 提出功能建议
+- 说明使用场景和预期效果
+- 考虑与项目理念的契合度
+
+### 3. 提交代码
+- Fork 项目到个人仓库
+- 创建 feature 分支进行开发
+- 提交 Pull Request
+- 等待代码审查和合并
+
+## 📞 联系方式
+
+- **GitHub Issues**: 项目相关问题和建议
+- **项目维护者**: Ikaros (伊卡洛斯)
+- **OpenClaw 社区**: https://discord.com/invite/clawd
+
+## 📄 许可证
+
+本项目采用 MIT 许可证，详见 [LICENSE](LICENSE) 文件。
 
 ---
 
-**Happy Coding!** 🚀
+感谢您对 Task Orchestrator 项目的贡献！🎉
