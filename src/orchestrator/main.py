@@ -11,6 +11,7 @@ import signal
 import sys
 from pathlib import Path
 from typing import Optional
+from datetime import datetime
 
 # 添加项目根目录到Python路径
 project_root = Path(__file__).parent.parent.parent
@@ -139,11 +140,36 @@ class TaskAPI:
     """任务API接口 - 提供外部调用接口"""
     
     @staticmethod
+    def _validate_task_input(title: str, description: str) -> Optional[str]:
+        """验证任务输入参数"""
+        if not title or not title.strip():
+            return "Task title is required"
+        if len(title.strip()) > 200:
+            return "Task title too long (max 200 characters)"
+        if not description or not description.strip():
+            return "Task description is required"
+        if len(description.strip()) > 5000:
+            return "Task description too long (max 5000 characters)"
+        return None
+    
+    @staticmethod
+    def _validate_task_id(task_id: str) -> Optional[str]:
+        """验证任务ID格式"""
+        if not task_id or not task_id.strip():
+            return "Task ID is required"
+        # 简单的UUID格式验证
+        import re
+        uuid_pattern = r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+        if not re.match(uuid_pattern, task_id.strip()):
+            return "Invalid task ID format"
+        return None
+    
+    @staticmethod
     async def create_task(title: str, description: str, 
                          priority: str = "medium",
                          complexity: Optional[str] = None) -> dict:
         """
-        创建新任务
+        创建新任务 - POST /api/tasks
         
         Args:
             title: 任务标题
@@ -155,46 +181,97 @@ class TaskAPI:
             dict: 任务信息
         """
         try:
-            # 转换参数
-            task_priority = TaskPriority(priority.lower())
-            manual_complexity = TaskComplexity(complexity) if complexity else None
+            # 输入验证
+            validation_error = TaskAPI._validate_task_input(title, description)
+            if validation_error:
+                return {
+                    "success": False,
+                    "error": validation_error,
+                    "error_code": "VALIDATION_ERROR"
+                }
+            
+            # 参数转换和验证
+            try:
+                task_priority = TaskPriority(priority.lower())
+            except ValueError:
+                return {
+                    "success": False,
+                    "error": f"Invalid priority: {priority}. Must be one of: low, medium, high, urgent",
+                    "error_code": "INVALID_PRIORITY"
+                }
+            
+            manual_complexity = None
+            if complexity:
+                try:
+                    manual_complexity = TaskComplexity(complexity.upper())
+                except ValueError:
+                    return {
+                        "success": False,
+                        "error": f"Invalid complexity: {complexity}. Must be one of: L1, L2, L3",
+                        "error_code": "INVALID_COMPLEXITY"
+                    }
             
             # 创建任务
             task = await task_manager.create_task(
-                title=title,
-                description=description,
+                title=title.strip(),
+                description=description.strip(),
                 priority=task_priority,
                 manual_complexity=manual_complexity
             )
             
             return {
                 "success": True,
-                "task_id": task.task_id,
-                "status": task.status.value,
-                "complexity": task.complexity.value if task.complexity else None,
-                "created_at": task.created_at.isoformat()
+                "data": {
+                    "task_id": task.task_id,
+                    "title": task.title,
+                    "description": task.description,
+                    "status": task.status.value,
+                    "priority": task.priority.value,
+                    "complexity": task.complexity.value if task.complexity else None,
+                    "progress": task.progress,
+                    "created_at": task.created_at.isoformat()
+                }
             }
             
         except Exception as e:
             return {
                 "success": False,
-                "error": str(e)
+                "error": f"Internal server error: {str(e)}",
+                "error_code": "INTERNAL_ERROR"
             }
     
     @staticmethod
     async def get_task(task_id: str) -> dict:
-        """获取任务信息"""
+        """
+        获取任务信息 - GET /api/tasks/{id}
+        
+        Args:
+            task_id: 任务ID
+            
+        Returns:
+            dict: 任务详细信息
+        """
         try:
-            task = await task_manager.get_task(task_id)
+            # 验证任务ID
+            validation_error = TaskAPI._validate_task_id(task_id)
+            if validation_error:
+                return {
+                    "success": False,
+                    "error": validation_error,
+                    "error_code": "VALIDATION_ERROR"
+                }
+            
+            task = await task_manager.get_task(task_id.strip())
             if not task:
                 return {
                     "success": False,
-                    "error": "Task not found"
+                    "error": "Task not found",
+                    "error_code": "TASK_NOT_FOUND"
                 }
             
             return {
                 "success": True,
-                "task": {
+                "data": {
                     "task_id": task.task_id,
                     "title": task.title,
                     "description": task.description,
@@ -202,7 +279,125 @@ class TaskAPI:
                     "status": task.status.value,
                     "priority": task.priority.value,
                     "progress": task.progress,
+                    "assigned_agent": task.assigned_agent,
                     "created_at": task.created_at.isoformat(),
+                    "updated_at": task.updated_at.isoformat(),
+                    "started_at": task.started_at.isoformat() if task.started_at else None,
+                    "completed_at": task.completed_at.isoformat() if task.completed_at else None,
+                    "execution_time": task.execution_time,
+                    "token_cost": task.token_cost,
+                    "result": task.result
+                }
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Internal server error: {str(e)}",
+                "error_code": "INTERNAL_ERROR"
+            }
+    
+    @staticmethod
+    async def update_task(task_id: str, **kwargs) -> dict:
+        """
+        更新任务信息 - PUT /api/tasks/{id}
+        
+        Args:
+            task_id: 任务ID
+            **kwargs: 更新字段 (title, description, priority, status, progress, result)
+            
+        Returns:
+            dict: 更新结果
+        """
+        try:
+            # 验证任务ID
+            validation_error = TaskAPI._validate_task_id(task_id)
+            if validation_error:
+                return {
+                    "success": False,
+                    "error": validation_error,
+                    "error_code": "VALIDATION_ERROR"
+                }
+            
+            # 检查任务是否存在
+            task = await task_manager.get_task(task_id.strip())
+            if not task:
+                return {
+                    "success": False,
+                    "error": "Task not found",
+                    "error_code": "TASK_NOT_FOUND"
+                }
+            
+            # 处理更新字段
+            updated_fields = []
+            
+            # 更新标题和描述
+            if 'title' in kwargs or 'description' in kwargs:
+                new_title = kwargs.get('title', task.title)
+                new_description = kwargs.get('description', task.description)
+                
+                validation_error = TaskAPI._validate_task_input(new_title, new_description)
+                if validation_error:
+                    return {
+                        "success": False,
+                        "error": validation_error,
+                        "error_code": "VALIDATION_ERROR"
+                    }
+                
+                task.title = new_title.strip()
+                task.description = new_description.strip()
+                updated_fields.extend(['title', 'description'])
+            
+            # 更新优先级
+            if 'priority' in kwargs:
+                try:
+                    task.priority = TaskPriority(kwargs['priority'].lower())
+                    updated_fields.append('priority')
+                except ValueError:
+                    return {
+                        "success": False,
+                        "error": f"Invalid priority: {kwargs['priority']}",
+                        "error_code": "INVALID_PRIORITY"
+                    }
+            
+            # 更新状态和进度
+            if 'status' in kwargs:
+                try:
+                    from src.core.task_manager import TaskStatus
+                    new_status = TaskStatus(kwargs['status'].lower())
+                    progress = kwargs.get('progress')
+                    result = kwargs.get('result')
+                    
+                    success = await task_manager.update_task_status(
+                        task_id.strip(), new_status, progress, result
+                    )
+                    
+                    if not success:
+                        return {
+                            "success": False,
+                            "error": "Failed to update task status",
+                            "error_code": "UPDATE_FAILED"
+                        }
+                    
+                    updated_fields.extend(['status', 'progress', 'result'])
+                    
+                except ValueError:
+                    return {
+                        "success": False,
+                        "error": f"Invalid status: {kwargs['status']}",
+                        "error_code": "INVALID_STATUS"
+                    }
+            
+            # 如果有其他字段更新，更新时间戳
+            if updated_fields:
+                from datetime import datetime
+                task.updated_at = datetime.now()
+            
+            return {
+                "success": True,
+                "data": {
+                    "task_id": task.task_id,
+                    "updated_fields": updated_fields,
                     "updated_at": task.updated_at.isoformat()
                 }
             }
@@ -210,28 +405,136 @@ class TaskAPI:
         except Exception as e:
             return {
                 "success": False,
-                "error": str(e)
+                "error": f"Internal server error: {str(e)}",
+                "error_code": "INTERNAL_ERROR"
+            }
+    
+    @staticmethod
+    async def delete_task(task_id: str) -> dict:
+        """
+        删除任务 - DELETE /api/tasks/{id}
+        
+        Args:
+            task_id: 任务ID
+            
+        Returns:
+            dict: 删除结果
+        """
+        try:
+            # 验证任务ID
+            validation_error = TaskAPI._validate_task_id(task_id)
+            if validation_error:
+                return {
+                    "success": False,
+                    "error": validation_error,
+                    "error_code": "VALIDATION_ERROR"
+                }
+            
+            # 检查任务是否存在
+            task = await task_manager.get_task(task_id.strip())
+            if not task:
+                return {
+                    "success": False,
+                    "error": "Task not found",
+                    "error_code": "TASK_NOT_FOUND"
+                }
+            
+            # 检查任务状态，运行中的任务不能删除
+            from src.core.task_manager import TaskStatus
+            if task.status == TaskStatus.RUNNING:
+                return {
+                    "success": False,
+                    "error": "Cannot delete running task. Please cancel it first.",
+                    "error_code": "TASK_RUNNING"
+                }
+            
+            # 删除任务
+            del task_manager.tasks[task_id.strip()]
+            
+            return {
+                "success": True,
+                "data": {
+                    "task_id": task_id.strip(),
+                    "deleted_at": datetime.now().isoformat()
+                }
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Internal server error: {str(e)}",
+                "error_code": "INTERNAL_ERROR"
             }
     
     @staticmethod
     async def list_tasks(status: Optional[str] = None,
                         complexity: Optional[str] = None,
-                        priority: Optional[str] = None) -> dict:
-        """列出任务"""
+                        priority: Optional[str] = None,
+                        limit: int = 50,
+                        offset: int = 0) -> dict:
+        """
+        列出任务 - GET /api/tasks
+        
+        Args:
+            status: 按状态过滤
+            complexity: 按复杂度过滤
+            priority: 按优先级过滤
+            limit: 返回数量限制 (默认50)
+            offset: 偏移量 (默认0)
+            
+        Returns:
+            dict: 任务列表
+        """
         try:
+            # 参数验证
+            if limit < 1 or limit > 1000:
+                return {
+                    "success": False,
+                    "error": "Limit must be between 1 and 1000",
+                    "error_code": "INVALID_LIMIT"
+                }
+            
+            if offset < 0:
+                return {
+                    "success": False,
+                    "error": "Offset must be non-negative",
+                    "error_code": "INVALID_OFFSET"
+                }
+            
             # 转换过滤参数
             status_filter = None
             if status:
-                from src.core.task_manager import TaskStatus
-                status_filter = TaskStatus(status.lower())
+                try:
+                    from src.core.task_manager import TaskStatus
+                    status_filter = TaskStatus(status.lower())
+                except ValueError:
+                    return {
+                        "success": False,
+                        "error": f"Invalid status: {status}",
+                        "error_code": "INVALID_STATUS"
+                    }
             
             complexity_filter = None
             if complexity:
-                complexity_filter = TaskComplexity(complexity)
+                try:
+                    complexity_filter = TaskComplexity(complexity.upper())
+                except ValueError:
+                    return {
+                        "success": False,
+                        "error": f"Invalid complexity: {complexity}",
+                        "error_code": "INVALID_COMPLEXITY"
+                    }
             
             priority_filter = None
             if priority:
-                priority_filter = TaskPriority(priority.lower())
+                try:
+                    priority_filter = TaskPriority(priority.lower())
+                except ValueError:
+                    return {
+                        "success": False,
+                        "error": f"Invalid priority: {priority}",
+                        "error_code": "INVALID_PRIORITY"
+                    }
             
             # 获取任务列表
             tasks = await task_manager.list_tasks(
@@ -239,6 +542,10 @@ class TaskAPI:
                 complexity=complexity_filter,
                 priority=priority_filter
             )
+            
+            # 分页处理
+            total = len(tasks)
+            tasks = tasks[offset:offset + limit]
             
             task_list = []
             for task in tasks:
@@ -249,19 +556,29 @@ class TaskAPI:
                     "status": task.status.value,
                     "priority": task.priority.value,
                     "progress": task.progress,
-                    "created_at": task.created_at.isoformat()
+                    "assigned_agent": task.assigned_agent,
+                    "created_at": task.created_at.isoformat(),
+                    "updated_at": task.updated_at.isoformat()
                 })
             
             return {
                 "success": True,
-                "tasks": task_list,
-                "total": len(task_list)
+                "data": {
+                    "tasks": task_list,
+                    "pagination": {
+                        "total": total,
+                        "limit": limit,
+                        "offset": offset,
+                        "has_more": offset + limit < total
+                    }
+                }
             }
             
         except Exception as e:
             return {
                 "success": False,
-                "error": str(e)
+                "error": f"Internal server error: {str(e)}",
+                "error_code": "INTERNAL_ERROR"
             }
 
 

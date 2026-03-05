@@ -1,317 +1,274 @@
-# OpenClaw Task Orchestrator
+# Task Orchestrator v0.0.1 - AI驱动的智能任务编排系统
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![OpenClaw](https://img.shields.io/badge/OpenClaw-Compatible-green.svg)](https://openclaw.ai)
+[![OpenClaw](https://img.shields.io/badge/OpenClaw-2026.3.2+-green.svg)](https://openclaw.ai)
+[![Version](https://img.shields.io/badge/version-0.0.1-orange.svg)](https://github.com/Risker-C/openclaw-task-orchestrator/releases)
 
-基于OpenClaw和飞书深度集成的智能任务编排系统，解决主Agent阻塞问题，实现真正的异步多任务处理。
+## 🎯 项目愿景
+
+**从复杂代码到智能文档的架构革新**
+
+Task Orchestrator v0.0.1 是一个基于.md文档驱动的OpenClaw Skill，通过AI直接分析任务复杂度，自动选择最优的执行策略，实现智能化的多Agent任务编排。
+
+### ⚠️ 版本说明
+- **当前版本**: v0.0.1 (初始版本)
+- **状态**: 实验性质，功能验证阶段
+- **目标**: 验证.md文档驱动的设计理念
+- **适用**: 学习、参考、功能验证
 
 ## 🚀 核心特性
 
-- **🔄 异步工单机制**: 主Agent立即响应，后台Agent池并行执行，彻底解决阻塞问题
-- **🧠 智能复杂度判断**: L1/L2/L3自动分流，基于Magi项目最佳实践，避免算力浪费
-- **📱 飞书深度集成**: Bitable看板、拖拽操作、实时协作、移动端原生体验
-- **📋 OpenSpec工作流**: propose→apply→archive标准流程，规范驱动开发
-- **👁️ 可观测性**: 实时状态追踪，完整任务生命周期管理，Agent健康监控
+### ✨ AI驱动的复杂度判断
+- 使用AI直接分析任务复杂度（L1/L2/L3）
+- 自动适应新领域和边缘情况
+- 提供详细判断理由和置信度评分
 
-## 🎯 解决的核心问题
+### 🎯 智能执行策略
+- **L1任务**: 直接执行建议（5-15分钟）
+- **L2任务**: 单Agent专业处理（30-90分钟）
+- **L3任务**: 多Agent协作编排（2-6小时）
 
-**Before (阻塞模式)**:
-```
-Master: "设计用户注册系统"
-系统: [30分钟后] "已完成，请查看结果"
-Master: [只能等待，无法发起新任务] ❌
-```
+### 📱 飞书深度集成
+- 自动同步Bitable工单状态
+- 实时任务进度通知
+- 可视化任务管理面板
 
-**After (异步工单模式)**:
-```
-Master: "设计用户注册系统"
-主Agent: "已理解需求，工单#001已创建，预计30分钟完成"
-Master: "再帮我分析一下竞品"
-主Agent: "好的，工单#002已创建，将在工单#001完成后处理"
-Master: [可以继续交互，查看进度，调整优先级] ✅
-```
+### 🔧 OpenClaw原生集成
+- 基于sessions_send的可靠通信
+- 避免sessions_spawn的已知问题
+- 完整的Agent状态监控
 
-## 🏗️ 架构设计
+## 📋 快速开始
 
-### 分层架构
-```
-应用层 (Application Layer)
-├── 主Agent交互 (立即响应、需求理解、工单创建)
-│
-编排层 (Orchestration Layer)  
-├── 任务调度器 (智能复杂度判断、路由分发)
-├── 工单管理器 (状态同步、生命周期管理)
-│
-执行层 (Execution Layer)
-├── Agent池管理 (并行执行、负载均衡)
-├── Skills/MCP集成 (能力扩展)
-│
-数据层 (Data Layer)
-├── 飞书Bitable (工单存储、看板可视化)
-├── 状态持久化 (任务状态、执行日志)
-│
-通信层 (Communication Layer)
-├── 飞书消息推送 (状态通知、完成提醒)
-├── 审批流程集成 (重要任务审批)
-```
-
-### 任务复杂度分级
-- **L1简单任务**: 查询信息、生成简单报告 → 单Agent直接执行 (5-10分钟)
-- **L2单步任务**: 分析文档、设计方案 → 专业Agent处理 (30-60分钟)  
-- **L3复杂任务**: 系统设计、多轮迭代 → 多Agent协作 (2-4小时)
-
-## 🚀 快速开始
-
-### 环境要求
+### 安装要求
 - Python 3.8+
-- OpenClaw运行环境
-- 飞书应用权限配置
+- OpenClaw 2026.3.2+
+- 飞书应用配置（可选）
 
-### 安装部署
-
-1. **克隆项目**
+### 基本使用
 ```bash
+# 1. 克隆项目到OpenClaw Skill目录
 git clone https://github.com/Risker-C/openclaw-task-orchestrator.git
-cd openclaw-task-orchestrator
+cd ~/.openclaw/workspace/skills/task-orchestrator
+
+# 2. 直接使用（无需安装依赖）
+# 在OpenClaw中直接对话即可：
+"帮我分析网站性能问题"
+
+# 3. 配置飞书集成（可选）
+# 参考 feishu-config.md 进行配置
 ```
 
-2. **安装依赖**
-```bash
-pip install -r requirements.txt
+### 使用示例
+```
+用户: "设计微服务架构"
+↓
+AI判断: L3任务（复杂系统设计）
+↓
+执行策略: 多Agent协作
+↓
+结果: 完整的架构设计方案
 ```
 
-3. **配置飞书集成**
-```bash
-# 复制配置模板
-cp config/feishu.example.json config/feishu.json
+## 🎨 架构设计
 
-# 编辑配置文件，填入你的飞书应用信息
-nano config/feishu.json
+### 核心理念
+- ✅ **.md文档驱动**: 主要逻辑通过文档指导
+- ✅ **OpenClaw原生**: 充分利用现有AI能力
+- ✅ **必要脚本**: 只有技术实现才用Python
+- ✅ **简洁专一**: 专注任务编排核心价值
+
+### 项目结构
+```
+~/.openclaw/workspace/skills/task-orchestrator/
+├── SKILL.md                    # 核心Skill文档
+├── README.md                   # 项目说明 (本文件)
+├── CONTRIBUTING.md             # 开发规范
+├── complexity-guide.md         # 复杂度判断指南
+├── agent-selection.md          # Agent选择规则
+├── execution-templates.md      # 执行模板
+├── feishu-config.md           # 飞书配置说明
+├── examples.md                # 使用示例
+├── .github/                   # GitHub模板
+│   ├── ISSUE_TEMPLATE/        # Issue模板
+│   └── pull_request_template.md
+└── scripts/                   # 必要脚本 (待实现)
+    ├── feishu-sync.py         # 飞书同步
+    └── feishu-notify.py       # 消息通知
 ```
 
-4. **初始化飞书Bitable表结构**
-```bash
-python scripts/init_bitable.py
-```
+### v0.0.1 vs 传统方案对比
 
-5. **启动任务编排器**
-```bash
-python src/orchestrator/main.py
-```
+| 方面 | 传统代码驱动 | Task Orchestrator v0.0.1 |
+|------|-------------|---------------------------|
+| 复杂度判断 | 复杂算法 | AI直接分析 |
+| 维护成本 | 高 | 低 |
+| 扩展性 | 需要代码更新 | 文档调整 |
+| 可读性 | 代码逻辑 | 自然语言 |
+| 学习成本 | 高 | 低 |
 
-### 配置说明
+## 📊 功能特性
 
-**飞书应用配置** (`config/feishu.json`):
+### 复杂度分级标准
+
+#### L1 - 简单任务 (5-15分钟)
+- **特征**: 查询、获取、读取类操作
+- **处理**: 直接返回执行建议
+- **示例**: "查询用户信息"、"检查系统状态"
+
+#### L2 - 专业任务 (30-90分钟)  
+- **特征**: 分析、设计、编写类任务
+- **处理**: 分配给单个专业Agent
+- **示例**: "分析性能瓶颈"、"编写技术文档"
+
+#### L3 - 复杂任务 (2-6小时)
+- **特征**: 系统性、多领域协作任务
+- **处理**: 多Agent协调执行
+- **示例**: "设计微服务架构"、"完整项目规划"
+
+### Agent选择规则
+- **技术类任务** → architect, code-reviewer
+- **文档类任务** → doc-engineer  
+- **研究类任务** → research-analyst
+- **设计类任务** → ui-designer, architect
+- **安全类任务** → security-monitor
+- **管理类任务** → implementation-planner, resource-manager
+
+详细规则参见 [agent-selection.md](agent-selection.md)
+
+## 🔧 配置说明
+
+### OpenClaw配置要求
+确保OpenClaw配置中关闭agentToAgent：
 ```json
 {
-  "app_id": "cli_xxxxxxxxxx",
-  "app_secret": "your_app_secret_here", 
-  "app_token": "your_bitable_app_token_here",
-  "table_configs": {
-    "tasks": {
-      "table_id": "your_tasks_table_id_here"
+  "tools": {
+    "agentToAgent": {
+      "enabled": false
     }
   }
 }
 ```
 
-**编排器配置** (`config/orchestrator.yaml`):
-```yaml
-orchestrator:
-  scheduler:
-    max_concurrent_tasks: 10
-    polling_interval: 30
-  complexity:
-    auto_detect: true
-    manual_override: true
-```
+### 飞书集成配置（可选）
+参考 [feishu-config.md](feishu-config.md) 进行详细配置：
+- 创建飞书应用
+- 配置权限和Bitable
+- 设置通知和同步
 
-## 📖 使用示例
+## 📚 文档导航
 
-### 基础API调用
+| 文档 | 描述 | 适用人群 |
+|------|------|----------|
+| [SKILL.md](SKILL.md) | 核心功能说明 | 所有用户 |
+| [complexity-guide.md](complexity-guide.md) | 复杂度判断标准 | 开发者、高级用户 |
+| [agent-selection.md](agent-selection.md) | Agent选择规则 | 开发者、系统管理员 |
+| [execution-templates.md](execution-templates.md) | 执行流程模板 | 开发者 |
+| [feishu-config.md](feishu-config.md) | 飞书集成配置 | 企业用户 |
+| [examples.md](examples.md) | 使用示例 | 新用户、学习者 |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | 开发规范 | 贡献者 |
 
-```python
-from src.orchestrator.main import TaskAPI
+## 🎯 使用场景
 
-# 创建简单任务
-result = await TaskAPI.create_task(
-    title="生成项目文档",
-    description="为当前项目生成完整的API文档",
-    priority="medium"
-)
+### ✅ 适用场景
+- 学习AI驱动的任务编排理念
+- 验证.md文档驱动的架构设计
+- 简单到中等复杂度的任务编排
+- 团队协作和任务分配
+- 飞书工单化管理
 
-# 创建复杂任务并指定复杂度
-result = await TaskAPI.create_task(
-    title="设计用户认证系统", 
-    description="设计完整的JWT认证系统，包括登录、注册、权限管理",
-    priority="high",
-    complexity="L3"
-)
+### ❌ 不适用场景
+- 生产环境的关键任务 (等待v1.0.0)
+- 需要实时响应的紧急任务
+- 超大规模的复杂项目管理
+- 需要严格SLA保证的场景
 
-# 查看任务状态
-task = await TaskAPI.get_task(task_id)
-print(f"任务状态: {task['status']}, 进度: {task['progress']}%")
+## 🔮 版本规划
 
-# 列出所有进行中的任务
-tasks = await TaskAPI.list_tasks(status="running")
-```
+| 版本 | 状态 | 主要目标 | 预计时间 |
+|------|------|---------|----------|
+| **v0.0.1** | 开发中 | 基础文档+脚本，验证设计理念 | 2026-03-10 |
+| **v0.1.0** | 规划中 | 功能稳定，用户反馈整合 | 2026-04-01 |
+| **v0.2.0** | 规划中 | 性能优化，体验改进 | 2026-05-01 |
+| **v1.0.0** | 远期 | 生产就绪，正式发布 | 2026-Q3 |
 
-### 飞书看板操作
+### v0.1.0 计划改进
+- 真实AI API集成优化
+- 增强飞书集成功能
+- 完善错误处理机制
+- 添加使用统计和分析
 
-1. **查看工单看板**: 在飞书Bitable中按状态分组查看所有任务
-2. **拖拽更新状态**: 直接拖拽任务卡片到不同状态列
-3. **实时协作**: 多人同时查看和操作，实时同步更新
-4. **移动端管理**: 飞书App中完整的任务管理体验
-
-### OpenClaw集成
-
-```python
-# 在OpenClaw主会话中使用
-Master: "帮我设计一个博客系统的数据库架构"
-
-# 系统自动判断为L2任务，调用architect agent
-主Agent: "已创建工单#003，复杂度L2，分配给architect agent，预计45分钟完成"
-
-# 可以继续发起新任务
-Master: "同时帮我分析一下竞品的用户体验"
-主Agent: "已创建工单#004，复杂度L2，分配给research-analyst，将在工单#003完成后处理"
-```
-
-## 🔧 开发指南
-
-### 项目结构
-```
-openclaw-task-orchestrator/
-├── src/
-│   ├── core/                   # 核心模块
-│   │   ├── task_manager.py     # 任务生命周期管理
-│   │   ├── complexity.py       # 智能复杂度判断
-│   │   └── scheduler.py        # 任务调度器
-│   ├── integrations/           # 集成模块
-│   │   ├── feishu/            # 飞书集成
-│   │   └── openclaw/          # OpenClaw集成
-│   └── orchestrator/           # 编排器
-├── config/                     # 配置文件
-├── scripts/                    # 工具脚本
-└── tests/                      # 测试用例
-```
-
-### 扩展开发
-
-**添加新的Agent类型**:
-```python
-# 在 src/core/scheduler.py 中注册
-specialist_agents = {
-    TaskComplexity.L2_SINGLE: [
-        "research-analyst", "doc-engineer", "code-reviewer",
-        "your-new-agent"  # 添加新Agent
-    ]
-}
-```
-
-**自定义复杂度判断**:
-```python
-# 在 src/core/complexity.py 中扩展
-def _analyze_custom_keywords(self, text: str) -> float:
-    custom_keywords = {
-        "blockchain": 4.0,
-        "machine-learning": 3.5,
-        # 添加领域特定关键词
-    }
-    return self._calculate_keyword_score(text, custom_keywords)
-```
+### v0.2.0 计划改进
+- Web监控面板开发
+- 性能优化和缓存机制
+- 支持自定义Agent配置
+- 多租户支持
 
 ## 🤝 贡献指南
 
-我们欢迎社区贡献！请查看 [Issues](https://github.com/Risker-C/openclaw-task-orchestrator/issues) 了解当前的开发计划。
+我们欢迎社区贡献！请查看 [CONTRIBUTING.md](CONTRIBUTING.md) 了解详细信息。
 
-### 开发流程
-1. Fork 项目
-2. 创建特性分支 (`git checkout -b feature/amazing-feature`)
-3. 提交更改 (`git commit -m 'Add amazing feature'`)
-4. 推送到分支 (`git push origin feature/amazing-feature`)
-5. 开启 Pull Request
+### 快速贡献
+```bash
+# 1. Fork项目
+# 2. 创建feature分支
+git checkout -b feature/issue-{number}-{description}
 
-### Issues 驱动开发
-- 🐛 **Bug报告**: 使用 `bug` 标签
-- 🚀 **功能请求**: 使用 `enhancement` 标签  
-- 📚 **文档改进**: 使用 `documentation` 标签
-- 🔧 **技术债务**: 使用 `tech-debt` 标签
+# 3. 提交变更
+git commit -m "feat(scope): description
 
-## 📊 参考项目
+Closes #{issue-number}"
 
-本项目融合了以下开源项目的最佳实践：
+# 4. 推送并创建PR
+git push origin feature/issue-{number}-{description}
+```
 
-### 🎯 核心架构参考
-- **[OpenSpec](https://github.com/Fission-AI/OpenSpec)** - 规范驱动开发框架
-  - 贡献：propose→apply→archive工作流，artifact结构管理
-  - 应用：复杂任务的规范化处理和文档生成
+### 开发规范
+- 遵循Git提交规范
+- 使用Issue驱动开发
+- 完善文档和示例
+- 确保代码质量
 
-- **[edict](https://github.com/cft0808/edict)** - 三省六部制AI多Agent协作系统
-  - 贡献：异步工单机制，主Agent解放，可观测性设计
-  - 应用：解决主Agent阻塞问题的核心架构
+## 📊 项目状态
 
-- **[Magi](https://github.com/MistRipple/magi-docs)** - 多智能体工程编排系统
-  - 贡献：L1/L2/L3智能复杂度判断，避免算力浪费
-  - 应用：任务复杂度自动分流和资源优化
+### 当前进度
+- [x] 核心架构设计 ✅
+- [x] 文档体系建立 ✅
+- [ ] 飞书脚本实现 🚧
+- [ ] 功能测试验证 📋
+- [ ] 用户反馈收集 📋
 
-### 🔄 协作机制参考
-- **[CCG-workflow](https://github.com/fengshao1227/ccg-workflow)** - 多模型协作开发工具集
-  - 贡献：智能路由，中心化审核机制，OPSX约束化规划
-  - 应用：任务类型路由和质量控制
+### 开发活跃度
+- **最近更新**: 2026-03-05
+- **开放Issues**: 5个
+- **已完成Issues**: 18个
+- **代码提交**: 活跃开发中
 
-- **[GuDaStudio/skills](https://github.com/GuDaStudio/skills)** - Agent Skills集合
-  - 贡献：标准化协作，Resource Matrix调度，5阶段工作流
-  - 应用：Agent能力扩展和标准化协作流程
+## 📞 支持和反馈
 
-- **[superspec](https://github.com/BryanHoo/superspec)** - OpenCode工作流配置
-  - 贡献：零决策理念，渐进严格策略，机械化执行
-  - 应用：任务规划的确定性和可预测性
+### 获取帮助
+- **GitHub Issues**: 报告问题或提出建议
+- **文档**: 查看详细的使用文档
+- **示例**: 参考examples.md中的使用案例
 
-### 🛠️ 工程实践参考
-- **[commands](https://github.com/GuDaStudio/commands)** - Claude Code自定义命令集合
-  - 贡献：有效上下文理论，RPI编码流程，以人为本操作理念
-  - 应用：上下文管理和用户体验优化
-
-- **[UltimateSearchSkill](https://github.com/ckckck/UltimateSearchSkill)** - 双引擎网络搜索Skill
-  - 贡献：双引擎架构，多账户聚合，三级降级机制
-  - 应用：高可用性设计和容错机制
-
-- **[AutoRedTeam-Orchestrator](https://github.com/Coff0xc/AutoRedTeam-Orchestrator)** - AI驱动自动化红队编排框架
-  - 贡献：AI原生设计，可扩展架构，依赖注入容器
-  - 应用：模块化设计和系统可扩展性
-
-- **[Claude-Code-Workflow](https://github.com/catlog22/Claude-Code-Workflow)** - JSON驱动多智能体团队开发框架
-  - 贡献：事件驱动Beat模型，JSON配置化，智能CLI编排
-  - 应用：高效的事件驱动协调和配置化管理
-
-### 🎨 创新融合
-本项目不是简单的功能堆叠，而是将这10个项目的核心洞察进行了深度融合：
-
-- **异步工单机制** (edict) + **智能复杂度判断** (Magi) = 高效的任务分流
-- **规范驱动开发** (OpenSpec) + **零决策理念** (superspec) = 可预测的执行
-- **事件驱动架构** (Claude-Code-Workflow) + **可观测性设计** (edict) = 实时监控
-- **双引擎架构** (UltimateSearchSkill) + **AI原生设计** (AutoRedTeam) = 高可用系统
-- **标准化协作** (GuDaStudio/skills) + **智能路由** (CCG-workflow) = 精准调度
+### 联系方式
+- **项目维护者**: Ikaros (伊卡洛斯)
+- **GitHub**: https://github.com/Risker-C/openclaw-task-orchestrator
+- **OpenClaw社区**: https://discord.com/invite/clawd
 
 ## 📄 许可证
 
-MIT License - 详见 [LICENSE](LICENSE) 文件
+本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
 
-## 🔗 相关链接
+## 🙏 致谢
 
-- [OpenClaw官网](https://openclaw.ai)
-- [OpenClaw文档](https://docs.openclaw.ai)
-- [飞书开放平台](https://open.feishu.cn)
-- [项目Wiki](https://github.com/Risker-C/openclaw-task-orchestrator/wiki)
-
-## 💬 社区支持
-
-- 🐛 [报告Bug](https://github.com/Risker-C/openclaw-task-orchestrator/issues/new?template=bug_report.md)
-- 💡 [功能建议](https://github.com/Risker-C/openclaw-task-orchestrator/issues/new?template=feature_request.md)
-- 💬 [讨论交流](https://github.com/Risker-C/openclaw-task-orchestrator/discussions)
+- [OpenClaw](https://openclaw.ai) - 强大的AI Agent平台
+- [飞书开放平台](https://open.feishu.cn) - 企业协作集成
+- 所有贡献者和社区成员
 
 ---
 
-**让AI协作更智能，让任务管理更高效！** 🚀
+**Task Orchestrator v0.0.1 - 让AI来判断，让编排更智能** 🎯
+
+*这是一个实验性项目，旨在探索AI驱动的任务编排新模式。欢迎试用并提供反馈！*

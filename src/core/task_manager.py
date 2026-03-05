@@ -10,6 +10,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 import asyncio
 import uuid
+import logging
 
 
 class TaskComplexity(str, Enum):
@@ -88,6 +89,7 @@ class TaskManager:
         self.tasks: Dict[str, Task] = {}
         self.task_queue: asyncio.Queue = asyncio.Queue()
         self._running = False
+        self.logger = logging.getLogger(__name__)
         
     async def create_task(self, title: str, description: str, 
                          priority: TaskPriority = TaskPriority.MEDIUM,
@@ -215,38 +217,79 @@ class TaskManager:
         return tasks
     
     async def _analyze_complexity(self, task: Task):
-        """智能复杂度判断 - 基于Magi项目的三级分流"""
-        # TODO: 实现智能复杂度判断逻辑
-        # 这里应该调用复杂度判断器，基于任务描述、历史数据等进行判断
+        """智能复杂度判断 - 使用优化后的复杂度分析器"""
+        from src.core.complexity import complexity_analyzer
         
-        # 临时简单实现：基于描述长度和关键词
-        description = task.description.lower()
-        
-        # L3复杂任务关键词
-        l3_keywords = ["设计", "架构", "系统", "框架", "多轮", "迭代", "协作"]
-        # L2单步任务关键词  
-        l2_keywords = ["分析", "方案", "文档", "报告", "研究", "评估"]
-        
-        if any(keyword in description for keyword in l3_keywords) or len(description) > 500:
-            task.complexity = TaskComplexity.L3_COMPLEX
-        elif any(keyword in description for keyword in l2_keywords) or len(description) > 100:
-            task.complexity = TaskComplexity.L2_SINGLE
-        else:
-            task.complexity = TaskComplexity.L1_SIMPLE
+        try:
+            # 使用新的复杂度分析器
+            complexity, explanation = await complexity_analyzer.analyze_complexity(task)
             
+            # 更新任务复杂度
+            task.complexity = complexity
+            
+            # 记录分析结果
+            self.logger.info(f"任务 {task.task_id[:8]} 复杂度分析完成: {complexity.value}")
+            self.logger.debug(f"分析详情: 置信度 {explanation.confidence:.2f}, 总得分 {explanation.indicators.total_score:.2f}")
+            
+            # 将解释信息存储到任务结果中（可选）
+            if not task.result:
+                task.result = {}
+            task.result['complexity_analysis'] = explanation.to_dict()
+            
+        except Exception as e:
+            self.logger.error(f"复杂度分析失败: {e}")
+            # 使用简单的后备分析
+            description = task.description.lower()
+            
+            # L3复杂任务关键词
+            l3_keywords = ["设计", "架构", "系统", "框架", "多轮", "迭代", "协作"]
+            # L2单步任务关键词  
+            l2_keywords = ["分析", "方案", "文档", "报告", "研究", "评估"]
+            
+            if any(keyword in description for keyword in l3_keywords) or len(description) > 500:
+                task.complexity = TaskComplexity.L3_COMPLEX
+            elif any(keyword in description for keyword in l2_keywords) or len(description) > 100:
+                task.complexity = TaskComplexity.L2_SINGLE
+            else:
+                task.complexity = TaskComplexity.L1_SIMPLE
+        
         task.status = TaskStatus.READY
     
     async def _sync_to_bitable(self, task: Task):
         """同步任务到飞书Bitable"""
-        # TODO: 实现飞书Bitable同步逻辑
-        # 这里应该调用飞书API，创建或更新Bitable记录
-        pass
+        try:
+            from src.integrations.feishu.client import feishu_client
+            
+            # 确保飞书客户端已初始化
+            if not feishu_client._initialized:
+                await feishu_client.initialize()
+            
+            # 如果任务还没有Bitable记录ID，创建新记录
+            if not task.bitable_record_id:
+                record_id = await feishu_client.create_task_record(task)
+                if record_id:
+                    task.bitable_record_id = record_id
+            else:
+                # 更新现有记录
+                await feishu_client.update_task_record(task)
+                
+        except Exception as e:
+            self.logger.error(f"Failed to sync task to Bitable: {e}")
     
     async def _send_notification(self, task: Task, event_type: str, extra_data: Optional[Dict] = None):
         """发送飞书通知"""
-        # TODO: 实现飞书消息通知逻辑
-        # 这里应该发送飞书消息卡片或机器人消息
-        pass
+        try:
+            from src.integrations.feishu.client import feishu_client
+            
+            # 确保飞书客户端已初始化
+            if not feishu_client._initialized:
+                await feishu_client.initialize()
+            
+            # 发送通知
+            await feishu_client.send_task_notification(task, event_type, extra_data)
+            
+        except Exception as e:
+            self.logger.error(f"Failed to send notification: {e}")
 
 
 # 全局任务管理器实例
