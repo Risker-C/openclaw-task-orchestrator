@@ -1,12 +1,13 @@
 #!/bin/bash
 
-# 轻量级通知检查脚本
-# 只检查通知文件，不调用任何API
+# 轻量级通知检查脚本 - 增强版
+# 支持精确时间记录和Bitable字段更新
 
 NOTIFICATION_FILE="/tmp/subagent-notifications.json"
 
 if [ -f "$NOTIFICATION_FILE" ]; then
   # 有新通知，读取并处理
+  echo "🔔 检测到subagent状态变化通知："
   cat "$NOTIFICATION_FILE"
   
   # 处理完后删除通知文件
