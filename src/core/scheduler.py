@@ -1,18 +1,39 @@
 """
-任务调度器 - 基于OpenClaw的异步任务调度和Agent编排
+Agent调度器 - 基础Agent池管理和任务调度
 
-融合edict异步工单机制、Magi智能路由、OpenSpec工作流等最佳实践
-实现高效的任务调度和多Agent协作编排
+实现Agent注册发现、负载均衡、健康检查等核心功能
+支持多Agent并行执行和智能资源分配
 """
 
 import asyncio
-from typing import Dict, List, Optional, Set
-from datetime import datetime, timedelta
-from dataclasses import dataclass, field
 import logging
+import time
+from typing import Dict, List, Optional, Set, Tuple, Any
+from dataclasses import dataclass, field
+from enum import Enum
+from datetime import datetime, timedelta
+import json
+import uuid
 
-from .task_manager import Task, TaskStatus, TaskComplexity, TaskPriority, task_manager
-from .complexity import complexity_analyzer
+from .task_manager import Task, TaskComplexity, TaskStatus
+
+
+class AgentStatus(Enum):
+    """Agent状态枚举"""
+    IDLE = "idle"           # 空闲
+    BUSY = "busy"           # 忙碌
+    OFFLINE = "offline"     # 离线
+    ERROR = "error"         # 错误状态
+    MAINTENANCE = "maintenance"  # 维护中
+
+
+class LoadBalanceStrategy(Enum):
+    """负载均衡策略"""
+    ROUND_ROBIN = "round_robin"     # 轮询
+    LEAST_CONNECTIONS = "least_connections"  # 最少连接
+    RANDOM = "random"               # 随机
+    WEIGHTED = "weighted"           # 权重
+    COMPLEXITY_BASED = "complexity_based"  # 基于复杂度
 
 
 @dataclass
@@ -20,383 +41,571 @@ class AgentInfo:
     """Agent信息"""
     agent_id: str
     agent_type: str
-    session_key: Optional[str] = None
-    status: str = "idle"  # idle, busy, failed
-    current_task_id: Optional[str] = None
+    status: AgentStatus = AgentStatus.OFFLINE
+    capabilities: List[str] = field(default_factory=list)
+    max_concurrent_tasks: int = 3
+    current_tasks: Set[str] = field(default_factory=set)
+    total_tasks_completed: int = 0
+    total_execution_time: float = 0.0
     last_heartbeat: Optional[datetime] = None
-    success_rate: float = 1.0
-    avg_execution_time: float = 0.0
-    total_tasks: int = 0
-    failed_tasks: int = 0
+    health_score: float = 1.0
+    weight: float = 1.0
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    
+    @property
+    def is_available(self) -> bool:
+        """检查Agent是否可用"""
+        return (self.status == AgentStatus.IDLE and 
+                len(self.current_tasks) < self.max_concurrent_tasks)
+    
+    @property
+    def load_factor(self) -> float:
+        """计算负载因子 (0-1)"""
+        if self.max_concurrent_tasks == 0:
+            return 1.0
+        return len(self.current_tasks) / self.max_concurrent_tasks
+    
+    @property
+    def average_execution_time(self) -> float:
+        """平均执行时间"""
+        if self.total_tasks_completed == 0:
+            return 0.0
+        return self.total_execution_time / self.total_tasks_completed
 
 
-@dataclass 
-class SchedulingContext:
-    """调度上下文"""
-    available_agents: List[AgentInfo] = field(default_factory=list)
-    pending_tasks: List[str] = field(default_factory=list)
-    running_tasks: Dict[str, str] = field(default_factory=dict)  # task_id -> agent_id
-    failed_tasks: Set[str] = field(default_factory=set)
-    
-    
-class TaskScheduler:
-    """任务调度器 - 核心调度逻辑"""
+@dataclass
+class TaskAssignment:
+    """任务分配记录"""
+    task_id: str
+    agent_id: str
+    assigned_at: datetime
+    complexity: TaskComplexity
+    estimated_duration: Optional[float] = None
+    actual_duration: Optional[float] = None
+    completed_at: Optional[datetime] = None
+    success: bool = False
+
+
+class AgentScheduler:
+    """Agent调度器 - 核心调度逻辑"""
     
     def __init__(self):
+        self.logger = logging.getLogger(__name__)
         self.agents: Dict[str, AgentInfo] = {}
-        self.context = SchedulingContext()
+        self.assignments: Dict[str, TaskAssignment] = {}  # task_id -> assignment
+        self.load_balance_strategy = LoadBalanceStrategy.COMPLEXITY_BASED
+        self.health_check_interval = 30.0  # 健康检查间隔(秒)
+        self.heartbeat_timeout = 60.0      # 心跳超时(秒)
         self._running = False
-        self._scheduler_task: Optional[asyncio.Task] = None
+        self._health_check_task: Optional[asyncio.Task] = None
         
-        # 调度配置
-        self.max_concurrent_tasks = 10
-        self.polling_interval = 30  # 秒
-        self.agent_timeout = 300    # Agent超时时间（秒）
-        
-        # 专业Agent映射
-        self.specialist_agents = {
+        # 复杂度到Agent类型的映射
+        self.complexity_agent_mapping = {
             TaskComplexity.L1_SIMPLE: ["general"],
             TaskComplexity.L2_SINGLE: [
-                "research-analyst", "doc-engineer", "code-reviewer", 
-                "ui-designer", "security-monitor"
+                "research-analyst", "doc-engineer", "architect", 
+                "code-reviewer", "ui-designer", "implementation-planner"
             ],
             TaskComplexity.L3_COMPLEX: [
-                "architect", "task-orchestrator", "implementation-planner",
-                "resource-manager", "strategic-advisor"
+                "task-orchestrator", "architect", "security-monitor", 
+                "resource-manager", "implementation-planner"
             ]
         }
-        
-        self.logger = logging.getLogger(__name__)
     
     async def start(self):
         """启动调度器"""
         if self._running:
             return
-            
+        
+        self.logger.info("Starting Agent Scheduler...")
         self._running = True
-        self._scheduler_task = asyncio.create_task(self._scheduler_loop())
-        self.logger.info("Task scheduler started")
+        
+        # 启动健康检查任务
+        self._health_check_task = asyncio.create_task(self._health_check_loop())
+        
+        self.logger.info("Agent Scheduler started successfully")
     
     async def stop(self):
         """停止调度器"""
-        self._running = False
-        if self._scheduler_task:
-            self._scheduler_task.cancel()
-            try:
-                await self._scheduler_task
-            except asyncio.CancelledError:
-                pass
-        self.logger.info("Task scheduler stopped")
-    
-    async def _scheduler_loop(self):
-        """调度器主循环"""
-        while self._running:
-            try:
-                await self._schedule_tasks()
-                await self._check_agent_health()
-                await self._handle_timeouts()
-                await asyncio.sleep(self.polling_interval)
-            except Exception as e:
-                self.logger.error(f"Scheduler loop error: {e}")
-                await asyncio.sleep(5)  # 错误后短暂等待
-    
-    async def _schedule_tasks(self):
-        """调度待处理任务"""
-        # 获取待处理任务
-        pending_tasks = await task_manager.list_tasks(status=TaskStatus.READY)
-        
-        # 按优先级和创建时间排序
-        pending_tasks.sort(key=lambda t: (
-            self._get_priority_weight(t.priority),
-            t.created_at
-        ))
-        
-        # 检查并发限制
-        running_count = len(self.context.running_tasks)
-        if running_count >= self.max_concurrent_tasks:
+        if not self._running:
             return
         
-        # 调度任务
-        for task in pending_tasks[:self.max_concurrent_tasks - running_count]:
-            agent = await self._select_agent(task)
-            if agent:
-                await self._dispatch_task(task, agent)
+        self.logger.info("Stopping Agent Scheduler...")
+        self._running = False
+        
+        # 停止健康检查任务
+        if self._health_check_task:
+            self._health_check_task.cancel()
+            try:
+                await self._health_check_task
+            except asyncio.CancelledError:
+                pass
+        
+        # 清理所有Agent状态
+        for agent in self.agents.values():
+            agent.status = AgentStatus.OFFLINE
+        
+        self.logger.info("Agent Scheduler stopped")
     
-    async def _select_agent(self, task: Task) -> Optional[AgentInfo]:
+    async def register_agent(self, agent_id: str, agent_type: str, 
+                           capabilities: Optional[List[str]] = None,
+                           max_concurrent_tasks: int = 3,
+                           weight: float = 1.0,
+                           metadata: Optional[Dict[str, Any]] = None) -> bool:
         """
-        选择最适合的Agent执行任务
+        注册Agent
         
-        基于以下因素进行选择：
-        1. Agent类型匹配度
-        2. 当前负载情况  
-        3. 历史成功率
-        4. 平均执行时间
+        Args:
+            agent_id: Agent唯一标识
+            agent_type: Agent类型
+            capabilities: Agent能力列表
+            max_concurrent_tasks: 最大并发任务数
+            weight: 权重 (用于加权负载均衡)
+            metadata: 元数据
+            
+        Returns:
+            bool: 注册是否成功
         """
-        # 获取适合的Agent类型
-        suitable_types = self.specialist_agents.get(task.complexity, ["general"])
+        try:
+            if agent_id in self.agents:
+                self.logger.warning(f"Agent {agent_id} already registered, updating...")
+            
+            agent_info = AgentInfo(
+                agent_id=agent_id,
+                agent_type=agent_type,
+                capabilities=capabilities or [],
+                max_concurrent_tasks=max_concurrent_tasks,
+                weight=weight,
+                metadata=metadata or {},
+                status=AgentStatus.IDLE,
+                last_heartbeat=datetime.now()
+            )
+            
+            self.agents[agent_id] = agent_info
+            self.logger.info(f"Agent {agent_id} ({agent_type}) registered successfully")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Failed to register agent {agent_id}: {e}")
+            return False
+    
+    async def unregister_agent(self, agent_id: str) -> bool:
+        """
+        注销Agent
         
-        # 筛选可用的Agent
-        available_agents = [
-            agent for agent in self.agents.values()
-            if (agent.status == "idle" and 
-                agent.agent_type in suitable_types and
-                self._is_agent_healthy(agent))
-        ]
+        Args:
+            agent_id: Agent标识
+            
+        Returns:
+            bool: 注销是否成功
+        """
+        try:
+            if agent_id not in self.agents:
+                self.logger.warning(f"Agent {agent_id} not found")
+                return False
+            
+            agent = self.agents[agent_id]
+            
+            # 检查是否有正在执行的任务
+            if agent.current_tasks:
+                self.logger.warning(f"Agent {agent_id} has {len(agent.current_tasks)} running tasks")
+                # 可以选择等待任务完成或强制取消
+                agent.status = AgentStatus.MAINTENANCE
+                return False
+            
+            # 移除Agent
+            del self.agents[agent_id]
+            self.logger.info(f"Agent {agent_id} unregistered successfully")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Failed to unregister agent {agent_id}: {e}")
+            return False
+    
+    async def update_agent_heartbeat(self, agent_id: str, 
+                                   status: Optional[AgentStatus] = None,
+                                   health_score: Optional[float] = None,
+                                   metadata: Optional[Dict[str, Any]] = None) -> bool:
+        """
+        更新Agent心跳
         
-        if not available_agents:
+        Args:
+            agent_id: Agent标识
+            status: 状态更新
+            health_score: 健康分数 (0-1)
+            metadata: 元数据更新
+            
+        Returns:
+            bool: 更新是否成功
+        """
+        try:
+            if agent_id not in self.agents:
+                self.logger.warning(f"Agent {agent_id} not found for heartbeat update")
+                return False
+            
+            agent = self.agents[agent_id]
+            agent.last_heartbeat = datetime.now()
+            
+            if status is not None:
+                agent.status = status
+            
+            if health_score is not None:
+                agent.health_score = max(0.0, min(1.0, health_score))
+            
+            if metadata is not None:
+                agent.metadata.update(metadata)
+            
+            self.logger.debug(f"Agent {agent_id} heartbeat updated")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Failed to update agent {agent_id} heartbeat: {e}")
+            return False
+    
+    async def assign_task(self, task: Task) -> Optional[str]:
+        """
+        分配任务给合适的Agent
+        
+        Args:
+            task: 任务对象
+            
+        Returns:
+            Optional[str]: 分配的Agent ID，None表示分配失败
+        """
+        try:
+            # 根据复杂度筛选候选Agent
+            candidate_agents = self._get_candidate_agents(task.complexity)
+            
+            if not candidate_agents:
+                self.logger.warning(f"No available agents for task {task.task_id} (complexity: {task.complexity.value})")
+                return None
+            
+            # 根据负载均衡策略选择Agent
+            selected_agent_id = self._select_agent(candidate_agents, task)
+            
+            if not selected_agent_id:
+                self.logger.warning(f"No suitable agent selected for task {task.task_id}")
+                return None
+            
+            # 执行分配
+            success = await self._execute_assignment(task, selected_agent_id)
+            
+            if success:
+                self.logger.info(f"Task {task.task_id} assigned to agent {selected_agent_id}")
+                return selected_agent_id
+            else:
+                self.logger.error(f"Failed to assign task {task.task_id} to agent {selected_agent_id}")
+                return None
+                
+        except Exception as e:
+            self.logger.error(f"Error assigning task {task.task_id}: {e}")
+            return None
+    
+    async def complete_task(self, task_id: str, success: bool = True, 
+                          execution_time: Optional[float] = None) -> bool:
+        """
+        标记任务完成
+        
+        Args:
+            task_id: 任务ID
+            success: 是否成功完成
+            execution_time: 实际执行时间
+            
+        Returns:
+            bool: 操作是否成功
+        """
+        try:
+            if task_id not in self.assignments:
+                self.logger.warning(f"Task {task_id} assignment not found")
+                return False
+            
+            assignment = self.assignments[task_id]
+            agent_id = assignment.agent_id
+            
+            if agent_id not in self.agents:
+                self.logger.warning(f"Agent {agent_id} not found for task completion")
+                return False
+            
+            agent = self.agents[agent_id]
+            
+            # 更新任务分配记录
+            assignment.completed_at = datetime.now()
+            assignment.success = success
+            if execution_time is not None:
+                assignment.actual_duration = execution_time
+            
+            # 更新Agent状态
+            if task_id in agent.current_tasks:
+                agent.current_tasks.remove(task_id)
+            
+            if success:
+                agent.total_tasks_completed += 1
+                if execution_time is not None:
+                    agent.total_execution_time += execution_time
+            
+            # 如果没有其他任务，设置为空闲
+            if not agent.current_tasks and agent.status == AgentStatus.BUSY:
+                agent.status = AgentStatus.IDLE
+            
+            self.logger.info(f"Task {task_id} completed on agent {agent_id} (success: {success})")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Error completing task {task_id}: {e}")
+            return False
+    
+    def _get_candidate_agents(self, complexity: TaskComplexity) -> List[AgentInfo]:
+        """根据复杂度获取候选Agent"""
+        suitable_types = self.complexity_agent_mapping.get(complexity, [])
+        
+        candidates = []
+        for agent in self.agents.values():
+            if (agent.agent_type in suitable_types and 
+                agent.is_available and 
+                agent.status not in [AgentStatus.OFFLINE, AgentStatus.ERROR, AgentStatus.MAINTENANCE]):
+                candidates.append(agent)
+        
+        return candidates
+    
+    def _select_agent(self, candidates: List[AgentInfo], task: Task) -> Optional[str]:
+        """根据负载均衡策略选择Agent"""
+        if not candidates:
             return None
         
-        # 计算Agent得分并选择最优
+        if self.load_balance_strategy == LoadBalanceStrategy.ROUND_ROBIN:
+            return self._select_round_robin(candidates)
+        elif self.load_balance_strategy == LoadBalanceStrategy.LEAST_CONNECTIONS:
+            return self._select_least_connections(candidates)
+        elif self.load_balance_strategy == LoadBalanceStrategy.RANDOM:
+            return self._select_random(candidates)
+        elif self.load_balance_strategy == LoadBalanceStrategy.WEIGHTED:
+            return self._select_weighted(candidates)
+        elif self.load_balance_strategy == LoadBalanceStrategy.COMPLEXITY_BASED:
+            return self._select_complexity_based(candidates, task)
+        else:
+            # 默认使用最少连接策略
+            return self._select_least_connections(candidates)
+    
+    def _select_round_robin(self, candidates: List[AgentInfo]) -> str:
+        """轮询选择"""
+        # 简单实现：按agent_id排序后选择
+        candidates.sort(key=lambda x: x.agent_id)
+        return candidates[0].agent_id
+    
+    def _select_least_connections(self, candidates: List[AgentInfo]) -> str:
+        """最少连接选择"""
+        return min(candidates, key=lambda x: len(x.current_tasks)).agent_id
+    
+    def _select_random(self, candidates: List[AgentInfo]) -> str:
+        """随机选择"""
+        import random
+        return random.choice(candidates).agent_id
+    
+    def _select_weighted(self, candidates: List[AgentInfo]) -> str:
+        """权重选择"""
+        # 考虑权重和当前负载
         best_agent = None
-        best_score = -1
+        best_score = float('inf')
         
-        for agent in available_agents:
-            score = self._calculate_agent_score(agent, task)
-            if score > best_score:
+        for agent in candidates:
+            # 分数 = 负载因子 / 权重 (越小越好)
+            score = agent.load_factor / max(agent.weight, 0.1)
+            if score < best_score:
                 best_score = score
                 best_agent = agent
         
-        return best_agent
+        return best_agent.agent_id if best_agent else candidates[0].agent_id
     
-    def _calculate_agent_score(self, agent: AgentInfo, task: Task) -> float:
-        """
-        计算Agent适合度得分
+    def _select_complexity_based(self, candidates: List[AgentInfo], task: Task) -> str:
+        """基于复杂度的智能选择"""
+        # 综合考虑：负载、健康分数、历史表现、Agent类型匹配度
+        best_agent = None
+        best_score = float('-inf')
         
-        参考AutoRedTeam的多方法验证思想，综合多个指标
-        """
-        # 基础得分
-        score = 1.0
+        for agent in candidates:
+            # 计算综合分数
+            load_score = 1.0 - agent.load_factor  # 负载越低分数越高
+            health_score = agent.health_score
+            performance_score = 1.0 / max(agent.average_execution_time, 1.0) if agent.average_execution_time > 0 else 1.0
+            
+            # 类型匹配度
+            type_score = 1.0
+            if task.complexity == TaskComplexity.L3_COMPLEX and agent.agent_type in ["architect", "task-orchestrator"]:
+                type_score = 1.5
+            elif task.complexity == TaskComplexity.L2_SINGLE and agent.agent_type in ["research-analyst", "doc-engineer"]:
+                type_score = 1.2
+            
+            # 综合分数 (可调整权重)
+            total_score = (load_score * 0.4 + 
+                          health_score * 0.3 + 
+                          performance_score * 0.2 + 
+                          type_score * 0.1)
+            
+            if total_score > best_score:
+                best_score = total_score
+                best_agent = agent
         
-        # 成功率权重 (40%)
-        score += agent.success_rate * 0.4
-        
-        # 负载权重 (30%) - 空闲Agent得分更高
-        if agent.status == "idle":
-            score += 0.3
-        
-        # 经验权重 (20%) - 有经验但不过载
-        if agent.total_tasks > 0:
-            experience_factor = min(agent.total_tasks / 10, 1.0)
-            score += experience_factor * 0.2
-        
-        # 优先级匹配权重 (10%)
-        if task.priority == TaskPriority.URGENT:
-            # 紧急任务优先选择成功率高的Agent
-            score += agent.success_rate * 0.1
-        
-        return score
+        return best_agent.agent_id if best_agent else candidates[0].agent_id
     
-    def _get_priority_weight(self, priority: TaskPriority) -> int:
-        """获取优先级权重（用于排序）"""
-        weights = {
-            TaskPriority.URGENT: 4,
-            TaskPriority.HIGH: 3,
-            TaskPriority.MEDIUM: 2,
-            TaskPriority.LOW: 1
-        }
-        return weights.get(priority, 2)
-    
-    def _is_agent_healthy(self, agent: AgentInfo) -> bool:
-        """检查Agent是否健康"""
-        if not agent.last_heartbeat:
-            return True  # 新Agent默认健康
-        
-        # 检查心跳超时
-        timeout_threshold = datetime.now() - timedelta(seconds=self.agent_timeout)
-        if agent.last_heartbeat < timeout_threshold:
-            return False
-        
-        # 检查失败率
-        if agent.total_tasks > 5 and agent.success_rate < 0.5:
-            return False
-        
-        return True
-    
-    async def _dispatch_task(self, task: Task, agent: AgentInfo):
-        """
-        派发任务给Agent
-        
-        基于OpenClaw的sessions_spawn机制启动Agent执行任务
-        """
+    async def _execute_assignment(self, task: Task, agent_id: str) -> bool:
+        """执行任务分配"""
         try:
-            # 更新任务状态
-            await task_manager.update_task_status(
-                task.task_id, 
-                TaskStatus.RUNNING,
-                progress=0
+            agent = self.agents[agent_id]
+            
+            # 创建分配记录
+            assignment = TaskAssignment(
+                task_id=task.task_id,
+                agent_id=agent_id,
+                assigned_at=datetime.now(),
+                complexity=task.complexity
             )
             
-            # 根据复杂度选择执行策略
-            if task.complexity == TaskComplexity.L1_SIMPLE:
-                await self._execute_l1_task(task, agent)
-            elif task.complexity == TaskComplexity.L2_SINGLE:
-                await self._execute_l2_task(task, agent)
-            else:  # L3_COMPLEX
-                await self._execute_l3_task(task, agent)
+            # 估算执行时间
+            if agent.average_execution_time > 0:
+                complexity_multiplier = {
+                    TaskComplexity.L1_SIMPLE: 1.0,
+                    TaskComplexity.L2_SINGLE: 3.0,
+                    TaskComplexity.L3_COMPLEX: 8.0
+                }
+                assignment.estimated_duration = (agent.average_execution_time * 
+                                                complexity_multiplier.get(task.complexity, 1.0))
             
             # 更新Agent状态
-            agent.status = "busy"
-            agent.current_task_id = task.task_id
+            agent.current_tasks.add(task.task_id)
+            if agent.status == AgentStatus.IDLE:
+                agent.status = AgentStatus.BUSY
             
-            # 记录调度信息
-            self.context.running_tasks[task.task_id] = agent.agent_id
+            # 保存分配记录
+            self.assignments[task.task_id] = assignment
             
-            self.logger.info(f"Task {task.task_id} dispatched to agent {agent.agent_id}")
+            # 更新任务状态
+            task.assigned_agent = agent_id
+            
+            return True
             
         except Exception as e:
-            self.logger.error(f"Failed to dispatch task {task.task_id}: {e}")
-            await task_manager.update_task_status(task.task_id, TaskStatus.FAILED)
+            self.logger.error(f"Failed to execute assignment for task {task.task_id}: {e}")
+            return False
     
-    async def _execute_l1_task(self, task: Task, agent: AgentInfo):
-        """执行L1简单任务 - 直接执行"""
-        # TODO: 实现L1任务的直接执行逻辑
-        # 这里应该调用OpenClaw的sessions_spawn，启动简单任务执行
-        pass
+    async def _health_check_loop(self):
+        """健康检查循环"""
+        while self._running:
+            try:
+                await self._perform_health_check()
+                await asyncio.sleep(self.health_check_interval)
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                self.logger.error(f"Error in health check loop: {e}")
+                await asyncio.sleep(5.0)  # 错误后短暂等待
     
-    async def _execute_l2_task(self, task: Task, agent: AgentInfo):
-        """执行L2单步任务 - 专业Agent处理"""
-        # TODO: 实现L2任务的专业Agent执行逻辑
-        # 调用sessions_spawn启动专业Agent
-        pass
-    
-    async def _execute_l3_task(self, task: Task, agent: AgentInfo):
-        """执行L3复杂任务 - 多Agent协作"""
-        # TODO: 实现L3任务的多Agent协作逻辑
-        # 1. 基于OpenSpec工作流进行任务分解
-        # 2. 生成artifact结构
-        # 3. 启动多个Agent协作执行
-        # 4. 协调Agent间的依赖关系
-        pass
-    
-    async def _check_agent_health(self):
-        """检查Agent健康状态"""
+    async def _perform_health_check(self):
+        """执行健康检查"""
         current_time = datetime.now()
+        timeout_threshold = timedelta(seconds=self.heartbeat_timeout)
         
-        for agent in self.agents.values():
-            if not self._is_agent_healthy(agent):
-                if agent.status == "busy" and agent.current_task_id:
-                    # Agent不健康且正在执行任务，标记任务失败
-                    await self._handle_agent_failure(agent)
-                
-                # 标记Agent为失败状态
-                agent.status = "failed"
-                self.logger.warning(f"Agent {agent.agent_id} marked as unhealthy")
+        for agent_id, agent in self.agents.items():
+            if agent.last_heartbeat is None:
+                continue
+            
+            # 检查心跳超时
+            if current_time - agent.last_heartbeat > timeout_threshold:
+                if agent.status != AgentStatus.OFFLINE:
+                    self.logger.warning(f"Agent {agent_id} heartbeat timeout, marking as offline")
+                    agent.status = AgentStatus.OFFLINE
+                    agent.health_score = 0.0
+                    
+                    # 处理该Agent的运行中任务
+                    await self._handle_agent_failure(agent_id)
     
-    async def _handle_timeouts(self):
-        """处理任务超时"""
-        current_time = datetime.now()
-        timeout_threshold = timedelta(hours=2)  # 2小时超时
-        
-        for task_id, agent_id in list(self.context.running_tasks.items()):
-            task = await task_manager.get_task(task_id)
-            if task and task.started_at:
-                if current_time - task.started_at > timeout_threshold:
-                    await self._handle_task_timeout(task, agent_id)
-    
-    async def _handle_agent_failure(self, agent: AgentInfo):
-        """处理Agent失败"""
-        if agent.current_task_id:
-            task = await task_manager.get_task(agent.current_task_id)
-            if task:
-                # 尝试重新调度任务
-                await self._reschedule_task(task, agent)
-        
-        # 清理Agent状态
-        agent.status = "failed"
-        agent.current_task_id = None
-    
-    async def _handle_task_timeout(self, task: Task, agent_id: str):
-        """处理任务超时"""
-        self.logger.warning(f"Task {task.task_id} timeout, agent: {agent_id}")
-        
-        # 标记任务失败
-        await task_manager.update_task_status(task.task_id, TaskStatus.FAILED)
-        
-        # 清理调度状态
-        if task.task_id in self.context.running_tasks:
-            del self.context.running_tasks[task.task_id]
-        
-        # 更新Agent状态
-        if agent_id in self.agents:
-            agent = self.agents[agent_id]
-            agent.status = "idle"
-            agent.current_task_id = None
-            agent.failed_tasks += 1
-            self._update_agent_success_rate(agent)
-    
-    async def _reschedule_task(self, task: Task, failed_agent: AgentInfo):
-        """重新调度失败的任务"""
-        # 增加重试计数
-        retry_count = getattr(task, 'retry_count', 0) + 1
-        setattr(task, 'retry_count', retry_count)
-        
-        # 如果重试次数过多，标记为失败
-        if retry_count > 3:
-            await task_manager.update_task_status(task.task_id, TaskStatus.FAILED)
+    async def _handle_agent_failure(self, agent_id: str):
+        """处理Agent故障"""
+        agent = self.agents.get(agent_id)
+        if not agent:
             return
         
-        # 重置任务状态，重新调度
-        await task_manager.update_task_status(task.task_id, TaskStatus.READY)
+        # 获取该Agent的所有运行中任务
+        failed_tasks = list(agent.current_tasks)
         
-        # 清理调度状态
-        if task.task_id in self.context.running_tasks:
-            del self.context.running_tasks[task.task_id]
+        for task_id in failed_tasks:
+            self.logger.warning(f"Task {task_id} failed due to agent {agent_id} failure")
+            
+            # 移除任务分配
+            if task_id in self.assignments:
+                assignment = self.assignments[task_id]
+                assignment.completed_at = datetime.now()
+                assignment.success = False
+            
+            # 清理Agent状态
+            agent.current_tasks.discard(task_id)
+            
+            # TODO: 这里可以实现任务重新调度逻辑
+            # await self._reschedule_task(task_id)
+    
+    def get_agent_stats(self) -> Dict[str, Any]:
+        """获取Agent统计信息"""
+        stats = {
+            "total_agents": len(self.agents),
+            "agents_by_status": {},
+            "agents_by_type": {},
+            "total_assignments": len(self.assignments),
+            "active_tasks": 0
+        }
         
-        self.logger.info(f"Task {task.task_id} rescheduled (retry {retry_count})")
-    
-    def _update_agent_success_rate(self, agent: AgentInfo):
-        """更新Agent成功率"""
-        if agent.total_tasks > 0:
-            success_tasks = agent.total_tasks - agent.failed_tasks
-            agent.success_rate = success_tasks / agent.total_tasks
-    
-    async def register_agent(self, agent_id: str, agent_type: str) -> AgentInfo:
-        """注册Agent"""
-        agent = AgentInfo(
-            agent_id=agent_id,
-            agent_type=agent_type,
-            last_heartbeat=datetime.now()
-        )
-        self.agents[agent_id] = agent
-        self.logger.info(f"Agent {agent_id} ({agent_type}) registered")
-        return agent
-    
-    async def unregister_agent(self, agent_id: str):
-        """注销Agent"""
-        if agent_id in self.agents:
-            agent = self.agents[agent_id]
-            if agent.current_task_id:
-                await self._handle_agent_failure(agent)
-            del self.agents[agent_id]
-            self.logger.info(f"Agent {agent_id} unregistered")
-    
-    async def agent_heartbeat(self, agent_id: str):
-        """Agent心跳"""
-        if agent_id in self.agents:
-            self.agents[agent_id].last_heartbeat = datetime.now()
-    
-    async def task_completed(self, task_id: str, agent_id: str, success: bool):
-        """任务完成回调"""
-        # 更新任务状态
-        status = TaskStatus.COMPLETED if success else TaskStatus.FAILED
-        await task_manager.update_task_status(task_id, status, progress=100)
+        for agent in self.agents.values():
+            # 按状态统计
+            status = agent.status.value
+            stats["agents_by_status"][status] = stats["agents_by_status"].get(status, 0) + 1
+            
+            # 按类型统计
+            agent_type = agent.agent_type
+            stats["agents_by_type"][agent_type] = stats["agents_by_type"].get(agent_type, 0) + 1
+            
+            # 活跃任务数
+            stats["active_tasks"] += len(agent.current_tasks)
         
-        # 更新Agent状态
-        if agent_id in self.agents:
-            agent = self.agents[agent_id]
-            agent.status = "idle"
-            agent.current_task_id = None
-            agent.total_tasks += 1
-            if not success:
-                agent.failed_tasks += 1
-            self._update_agent_success_rate(agent)
+        return stats
+    
+    def get_agent_info(self, agent_id: str) -> Optional[Dict[str, Any]]:
+        """获取特定Agent信息"""
+        if agent_id not in self.agents:
+            return None
         
-        # 清理调度状态
-        if task_id in self.context.running_tasks:
-            del self.context.running_tasks[task_id]
+        agent = self.agents[agent_id]
+        return {
+            "agent_id": agent.agent_id,
+            "agent_type": agent.agent_type,
+            "status": agent.status.value,
+            "capabilities": agent.capabilities,
+            "max_concurrent_tasks": agent.max_concurrent_tasks,
+            "current_tasks": list(agent.current_tasks),
+            "current_load": len(agent.current_tasks),
+            "load_factor": agent.load_factor,
+            "total_tasks_completed": agent.total_tasks_completed,
+            "average_execution_time": agent.average_execution_time,
+            "health_score": agent.health_score,
+            "weight": agent.weight,
+            "last_heartbeat": agent.last_heartbeat.isoformat() if agent.last_heartbeat else None,
+            "metadata": agent.metadata
+        }
+    
+    def list_agents(self, status_filter: Optional[AgentStatus] = None,
+                   type_filter: Optional[str] = None) -> List[Dict[str, Any]]:
+        """列出Agent"""
+        agents = []
         
-        self.logger.info(f"Task {task_id} completed by agent {agent_id}, success: {success}")
+        for agent in self.agents.values():
+            if status_filter and agent.status != status_filter:
+                continue
+            if type_filter and agent.agent_type != type_filter:
+                continue
+            
+            agent_info = self.get_agent_info(agent.agent_id)
+            if agent_info:
+                agents.append(agent_info)
+        
+        return agents
 
 
-# 全局任务调度器实例
-task_scheduler = TaskScheduler()
+# 全局调度器实例
+task_scheduler = AgentScheduler()
