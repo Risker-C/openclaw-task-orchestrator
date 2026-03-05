@@ -242,11 +242,58 @@ def _analyze_custom_keywords(self, text: str) -> float:
 ## 📊 参考项目
 
 本项目融合了以下开源项目的最佳实践：
-- [OpenSpec](https://github.com/Fission-AI/OpenSpec) - 规范驱动开发
-- [edict](https://github.com/cft0808/edict) - 异步工单机制
-- [Magi](https://github.com/MistRipple/magi-docs) - 智能复杂度判断
-- [CCG-workflow](https://github.com/fengshao1227/ccg-workflow) - 多模型协作
-- 以及其他6个相关项目的核心洞察
+
+### 🎯 核心架构参考
+- **[OpenSpec](https://github.com/Fission-AI/OpenSpec)** - 规范驱动开发框架
+  - 贡献：propose→apply→archive工作流，artifact结构管理
+  - 应用：复杂任务的规范化处理和文档生成
+
+- **[edict](https://github.com/cft0808/edict)** - 三省六部制AI多Agent协作系统
+  - 贡献：异步工单机制，主Agent解放，可观测性设计
+  - 应用：解决主Agent阻塞问题的核心架构
+
+- **[Magi](https://github.com/MistRipple/magi-docs)** - 多智能体工程编排系统
+  - 贡献：L1/L2/L3智能复杂度判断，避免算力浪费
+  - 应用：任务复杂度自动分流和资源优化
+
+### 🔄 协作机制参考
+- **[CCG-workflow](https://github.com/fengshao1227/ccg-workflow)** - 多模型协作开发工具集
+  - 贡献：智能路由，中心化审核机制，OPSX约束化规划
+  - 应用：任务类型路由和质量控制
+
+- **[GuDaStudio/skills](https://github.com/GuDaStudio/skills)** - Agent Skills集合
+  - 贡献：标准化协作，Resource Matrix调度，5阶段工作流
+  - 应用：Agent能力扩展和标准化协作流程
+
+- **[superspec](https://github.com/BryanHoo/superspec)** - OpenCode工作流配置
+  - 贡献：零决策理念，渐进严格策略，机械化执行
+  - 应用：任务规划的确定性和可预测性
+
+### 🛠️ 工程实践参考
+- **[commands](https://github.com/GuDaStudio/commands)** - Claude Code自定义命令集合
+  - 贡献：有效上下文理论，RPI编码流程，以人为本操作理念
+  - 应用：上下文管理和用户体验优化
+
+- **[UltimateSearchSkill](https://github.com/ckckck/UltimateSearchSkill)** - 双引擎网络搜索Skill
+  - 贡献：双引擎架构，多账户聚合，三级降级机制
+  - 应用：高可用性设计和容错机制
+
+- **[AutoRedTeam-Orchestrator](https://github.com/Coff0xc/AutoRedTeam-Orchestrator)** - AI驱动自动化红队编排框架
+  - 贡献：AI原生设计，可扩展架构，依赖注入容器
+  - 应用：模块化设计和系统可扩展性
+
+- **[Claude-Code-Workflow](https://github.com/catlog22/Claude-Code-Workflow)** - JSON驱动多智能体团队开发框架
+  - 贡献：事件驱动Beat模型，JSON配置化，智能CLI编排
+  - 应用：高效的事件驱动协调和配置化管理
+
+### 🎨 创新融合
+本项目不是简单的功能堆叠，而是将这10个项目的核心洞察进行了深度融合：
+
+- **异步工单机制** (edict) + **智能复杂度判断** (Magi) = 高效的任务分流
+- **规范驱动开发** (OpenSpec) + **零决策理念** (superspec) = 可预测的执行
+- **事件驱动架构** (Claude-Code-Workflow) + **可观测性设计** (edict) = 实时监控
+- **双引擎架构** (UltimateSearchSkill) + **AI原生设计** (AutoRedTeam) = 高可用系统
+- **标准化协作** (GuDaStudio/skills) + **智能路由** (CCG-workflow) = 精准调度
 
 ## 📄 许可证
 
