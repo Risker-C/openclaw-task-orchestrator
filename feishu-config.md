@@ -1,10 +1,10 @@
-# 飞书集成配置指南
+# OpenClaw飞书配置指南
 
 ## 📋 概述
 
-本文档详细说明如何配置OpenClaw Task Orchestrator的飞书集成功能，包括应用创建、权限配置、Bitable设置等。
+本文档说明如何配置OpenClaw的飞书集成，以支持Task Orchestrator的Bitable和消息功能。
 
-## 🚀 快速开始
+## 🚀 OpenClaw飞书配置
 
 ### 1. 创建飞书应用
 
@@ -12,7 +12,7 @@
 2. 创建企业自建应用
 3. 获取 `App ID` 和 `App Secret`
 
-### 2. 配置权限
+### 2. 配置应用权限
 
 在应用管理页面，添加以下权限：
 
@@ -31,64 +31,53 @@
 - `docx:document:readonly` - 读取文档
 - `docx:document:readwrite` - 读写文档
 
-### 3. 创建配置文件
+### 3. OpenClaw配置文件
 
-```bash
-# 初始化配置文件
-python scripts/config-helper.py --action init
+在OpenClaw的配置文件中添加飞书账户配置：
 
-# 编辑配置文件
-vim config/feishu.json
+#### 配置文件位置
+- Linux: `~/.openclaw/config.yaml`
+- macOS: `~/.openclaw/config.yaml`
+- Windows: `%USERPROFILE%\.openclaw\config.yaml`
+
+#### 配置示例
+```yaml
+channels:
+  feishu:
+    accounts:
+      main:
+        appId: "cli_xxxxxxxxxx"
+        appSecret: "your_app_secret_here"
+        domain: "feishu"  # 或 "lark" (国际版)
+        # 可选配置
+        defaultChatId: "oc_xxxxxxxxxx"  # 默认通知群组
 ```
 
-## ⚙️ 配置文件详解
-
-### config/feishu.json 结构
-
-```json
-{
-  "app_id": "cli_xxxxxxxxxx",
-  "app_secret": "your_app_secret_here",
-  "app_token": "your_bitable_app_token",
-  "table_configs": {
-    "tasks": {
-      "table_id": "your_tasks_table_id",
-      "fields": {
-        "task_id": "任务ID",
-        "title": "任务标题",
-        "description": "任务描述",
-        "complexity": "复杂度",
-        "status": "状态",
-        "priority": "优先级",
-        "assigned_agent": "分配Agent",
-        "created_at": "创建时间",
-        "updated_at": "更新时间",
-        "progress": "进度百分比",
-        "token_cost": "Token消耗",
-        "result_doc": "结果文档",
-        "wiki_node": "Wiki节点"
-      }
-    }
-  },
-  "notification": {
-    "chat_id": "your_notification_chat_id",
-    "templates": {
-      "task_assigned": "🎯 任务分配通知\\n任务: {task}\\nAgent: {agent}\\n复杂度: {complexity}\\n截止时间: {deadline}",
-      "task_completed": "✅ 任务完成通知\\n任务: {task}\\n结果: {result}\\n耗时: {duration}"
-    }
-  }
-}
+#### 多账户配置
+```yaml
+channels:
+  feishu:
+    accounts:
+      main:
+        appId: "cli_xxxxxxxxxx"
+        appSecret: "your_main_app_secret"
+        domain: "feishu"
+      work:
+        appId: "cli_yyyyyyyyyy"
+        appSecret: "your_work_app_secret"
+        domain: "feishu"
+    # 默认使用的账户
+    defaultAccount: "main"
 ```
 
-### 环境变量配置
+### 4. 环境变量配置（可选）
 
-可以通过环境变量覆盖配置文件：
+也可以通过环境变量配置：
 
 ```bash
-export FEISHU_APP_ID="cli_xxxxxxxxxx"
-export FEISHU_APP_SECRET="your_app_secret_here"
-export FEISHU_APP_TOKEN="your_bitable_app_token"
-export FEISHU_TABLE_ID="your_tasks_table_id"
+export OPENCLAW_FEISHU_APP_ID="cli_xxxxxxxxxx"
+export OPENCLAW_FEISHU_APP_SECRET="your_app_secret_here"
+export OPENCLAW_FEISHU_DOMAIN="feishu"
 ```
 
 ## 📊 Bitable表格设置
@@ -96,91 +85,87 @@ export FEISHU_TABLE_ID="your_tasks_table_id"
 ### 1. 创建多维表格应用
 
 1. 在飞书中创建新的多维表格
-2. 复制应用Token（URL中的app_token）
+2. 复制应用Token（URL中的app_token部分）
 3. 创建"任务管理"数据表
+4. 复制表格ID（URL中的table参数）
 
-### 2. 配置字段
+### 2. 配置必需字段
 
-| 字段名 | 类型 | 说明 |
-|--------|------|------|
-| 任务ID | 单行文本 | 唯一标识符 |
-| 任务标题 | 单行文本 | 任务名称 |
-| 任务描述 | 多行文本 | 详细描述 |
-| 复杂度 | 单选 | L1/L2/L3 |
-| 状态 | 单选 | 待处理/进行中/已完成等 |
-| 优先级 | 单选 | 低/中/高/紧急 |
-| 分配Agent | 单行文本 | 负责的Agent |
-| 创建时间 | 日期时间 | 自动填充 |
-| 更新时间 | 日期时间 | 自动更新 |
-| 进度百分比 | 数字 | 0-100 |
-| Token消耗 | 数字 | 资源统计 |
-| 结果文档 | 超链接 | 文档链接 |
-| Wiki节点 | 超链接 | 知识库链接 |
+Task Orchestrator需要以下字段：
 
-### 3. 配置看板视图
+| 字段名 | 类型 | 必需 | 说明 |
+|--------|------|------|------|
+| 任务ID | 单行文本 | ✅ | 唯一标识符 |
+| 任务标题 | 单行文本 | ✅ | 任务名称 |
+| 任务描述 | 多行文本 | ✅ | 详细描述 |
+| 复杂度 | 单选 | ✅ | L1/L2/L3 |
+| 状态 | 单选 | ✅ | 待处理/进行中/已完成/失败 |
+| 优先级 | 单选 | ❌ | 低/中/高/紧急 |
+| 分配Agent | 单行文本 | ✅ | 负责的Agent |
+| 创建时间 | 日期时间 | ❌ | 自动填充 |
+| 更新时间 | 日期时间 | ❌ | 自动更新 |
+| 进度百分比 | 数字 | ❌ | 0-100 |
+| Token消耗 | 数字 | ❌ | 资源统计 |
+| 结果文档 | 超链接 | ❌ | 文档链接 |
+
+### 3. 单选字段选项配置
+
+**复杂度字段选项**:
+- L1 (简单)
+- L2 (中等)  
+- L3 (复杂)
+
+**状态字段选项**:
+- 待处理
+- 进行中
+- 已完成
+- 失败
+- 已取消
+
+**优先级字段选项**:
+- 低
+- 中
+- 高
+- 紧急
+
+### 4. 创建看板视图
 
 1. 创建新视图，选择"看板"
 2. 按"状态"字段分组
 3. 设置筛选条件（可选）
 4. 保存视图设置
 
-## 🔧 脚本使用指南
+## 🔧 OpenClaw工具使用
 
-### feishu-sync.py - 数据同步
+### 验证配置
 
-```bash
-# 创建任务记录
-python scripts/feishu-sync.py --action create \
-  --task-id "task-001" \
-  --title "设计用户注册系统" \
-  --description "包含前端界面和后端API" \
-  --complexity "L2" \
-  --status "待处理"
+使用OpenClaw的feishu工具验证配置：
 
-# 更新任务状态
-python scripts/feishu-sync.py --action update \
-  --task-id "task-001" \
-  --status "进行中" \
-  --progress 50 \
-  --agent "architect"
+```javascript
+// 测试Bitable连接
+feishu_bitable_get_meta({
+  url: "https://your-domain.feishu.cn/base/your_app_token?table=your_table_id"
+})
 
-# 查询任务记录
-python scripts/feishu-sync.py --action query \
-  --task-id "task-001"
+// 测试消息发送
+message({
+  action: "send",
+  message: "配置测试消息",
+  channel: "feishu"
+})
 ```
 
-### feishu-notify.py - 消息通知
+### 获取配置信息
 
-```bash
-# 发送简单消息
-python scripts/feishu-notify.py --action send \
-  --message "任务已完成，请查看结果" \
-  --target "oc_xxxxxxxxxx"
+```javascript
+// 查看当前飞书应用权限
+feishu_app_scopes()
 
-# 使用模板发送
-python scripts/feishu-notify.py --action template \
-  --template "task_completed" \
-  --data '{"task":"用户注册系统","result":"已完成","duration":"2小时"}'
-
-# 查看可用模板
-python scripts/feishu-notify.py --action list-templates
-```
-
-### config-helper.py - 配置管理
-
-```bash
-# 初始化配置
-python scripts/config-helper.py --action init
-
-# 验证配置
-python scripts/config-helper.py --action validate
-
-# 测试连接
-python scripts/config-helper.py --action test
-
-# 更新配置
-python scripts/config-helper.py --action update \
-  --updates '{"app_id":"new_app_id"}'
+// 获取Bitable表格字段信息
+feishu_bitable_list_fields({
+  app_token: "your_app_token",
+  table_id: "your_table_id"
+})
 ```
 
 ## 🚨 故障排除
@@ -191,61 +176,87 @@ python scripts/config-helper.py --action update \
 ```
 ❌ auth failed: {"code": 99991663, "msg": "app access token invalid"}
 ```
-- 检查 `app_id` 和 `app_secret` 是否正确
+**解决方案**:
+- 检查 `appId` 和 `appSecret` 是否正确
 - 确认应用状态为"已启用"
+- 验证配置文件格式是否正确
 
 **2. 权限不足**
 ```
-❌ send message failed: {"code": 230002, "msg": "permission denied"}
+❌ permission denied: {"code": 230002, "msg": "permission denied"}
 ```
+**解决方案**:
 - 检查应用权限配置
 - 确认机器人已加入目标群组
+- 验证Bitable应用的访问权限
 
 **3. 表格不存在**
 ```
-❌ create record failed: {"code": 1254006, "msg": "app not found"}
+❌ app not found: {"code": 1254006, "msg": "app not found"}
 ```
+**解决方案**:
 - 检查 `app_token` 和 `table_id` 是否正确
 - 确认应用有访问该表格的权限
+- 验证表格是否已删除或移动
 
-### 调试模式
+### 调试方法
 
-启用调试模式获取详细日志：
-
+**1. 检查OpenClaw日志**
 ```bash
-python scripts/feishu-sync.py --debug --action create --task-id test
+# 查看OpenClaw日志
+openclaw gateway logs
+
+# 过滤飞书相关日志
+openclaw gateway logs | grep feishu
 ```
+
+**2. 测试工具调用**
+```javascript
+// 在OpenClaw中测试单个工具
+feishu_app_scopes()  // 查看权限
+```
+
+**3. 验证网络连接**
+```bash
+# 测试飞书API连接
+curl -H "Authorization: Bearer your_token" \
+  https://open.feishu.cn/open-apis/auth/v3/app_access_token/internal
+```
+
+## 🔐 安全注意事项
+
+### 1. 敏感信息保护
+- **不要将 `appSecret` 提交到版本控制**
+- **使用环境变量存储敏感配置**
+- **定期轮换应用密钥**
+
+### 2. 权限最小化
+- **只申请必要的API权限**
+- **定期审查权限使用情况**
+- **限制应用访问范围**
+
+### 3. 网络安全
+- **使用HTTPS进行API调用**
+- **验证SSL证书**
+- **设置合理的超时时间**
 
 ## 📚 参考资源
 
 - [飞书开放平台文档](https://open.feishu.cn/document/)
 - [多维表格API](https://open.feishu.cn/document/server-docs/docs/bitable-v1/)
 - [消息API](https://open.feishu.cn/document/server-docs/im-v1/message/)
-- [OpenClaw Task Orchestrator GitHub](https://github.com/Risker-C/openclaw-task-orchestrator)
+- [OpenClaw官方文档](https://docs.openclaw.ai)
 
-## 🔐 安全注意事项
+## ✅ 配置检查清单
 
-1. **敏感信息保护**
-   - 不要将 `app_secret` 提交到版本控制
-   - 使用环境变量存储敏感配置
-   - 定期轮换应用密钥
+完成配置后，请确认以下项目：
 
-2. **权限最小化**
-   - 只申请必要的API权限
-   - 定期审查权限使用情况
-   - 限制应用访问范围
+- [ ] 飞书应用已创建并获取App ID和App Secret
+- [ ] 应用权限已正确配置（机器人、Bitable、文档权限）
+- [ ] OpenClaw配置文件已更新
+- [ ] Bitable表格已创建并配置必需字段
+- [ ] 单选字段选项已设置
+- [ ] 看板视图已创建
+- [ ] 配置测试通过
 
-3. **网络安全**
-   - 使用HTTPS进行API调用
-   - 验证SSL证书
-   - 设置合理的超时时间
-
----
-
-**配置完成后，运行测试命令验证集成是否正常工作：**
-
-```bash
-python scripts/config-helper.py --action test
-```
-
-如果测试通过，您就可以开始使用OpenClaw Task Orchestrator的飞书集成功能了！🎉
+**配置完成后，Task Orchestrator就可以使用OpenClaw的原生飞书工具了！** 🎉

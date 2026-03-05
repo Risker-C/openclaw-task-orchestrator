@@ -1,379 +1,399 @@
-# 执行模板 v0.0.1
+# 执行模板 - OpenClaw原生工具版本
 
-## 📋 版本说明
+## 📋 概述
 
-- **版本**: v0.0.1 (初始版本)
-- **状态**: 基础执行模板，会根据使用反馈优化
-- **目标**: 为不同复杂度任务提供标准化执行流程
+本文档提供基于OpenClaw原生工具的任务执行模板，用于标准化Task Orchestrator的工作流程。
 
-## 🎯 模板设计原则
+## 🎯 核心执行流程
 
-### 核心理念
-1. **标准化流程**: 为每种复杂度提供清晰的执行步骤
-2. **灵活适应**: 模板可根据具体任务调整
-3. **质量保证**: 内置质量检查和验收标准
-4. **可追溯性**: 记录执行过程和结果
-
-### 模板结构
-- **任务分析**: 理解任务需求和目标
-- **执行策略**: 选择合适的处理方式
-- **质量控制**: 确保输出质量
-- **结果交付**: 标准化的结果格式
-
-## 📊 L1任务执行模板
-
-### 适用场景
-- 简单查询、获取、检查类操作
-- 预计时间: 5-15分钟
-- 处理方式: 直接执行，无需Agent分配
-
-### 执行流程
-
-#### 1. 任务分析
+### 1. 任务接收与分析
 ```markdown
-**任务理解**:
-- 明确用户的具体需求
-- 识别需要查询的信息类型
-- 确定信息来源和获取方式
+## 步骤1: 接收任务请求
+- 解析用户任务描述
+- 提取关键信息和约束条件
+- 识别任务类型和领域
 
-**示例**:
-用户: "查询用户ID为12345的基本信息"
-分析: 需要从用户数据库查询指定ID的用户基本信息
+## 步骤2: 复杂度分析
+基于以下维度进行AI判断：
+- 技术难度：需要的专业知识深度
+- 时间复杂度：预估完成时间
+- 依赖关系：是否需要多个步骤或外部资源
+- 创新程度：是否需要创造性思考
+
+输出：L1/L2/L3复杂度等级
 ```
 
-#### 2. 直接执行
-```markdown
-**执行策略**:
-- 提供具体的操作步骤
-- 给出相关命令或查询语句
-- 说明预期结果格式
+### 2. Agent选择与工单创建
+```javascript
+// 步骤3: 选择最适合的Agent
+const selectedAgent = selectAgent({
+  taskType: "技术架构设计",
+  complexity: "L2", 
+  requiredSkills: ["系统设计", "技术选型"],
+  workload: "medium"
+});
 
-**示例输出**:
-您可以通过以下方式查询用户信息:
-
-1. 数据库查询:
-   ```sql
-   SELECT id, name, email, created_at 
-   FROM users 
-   WHERE id = 12345;
-   ```
-
-2. API调用:
-   ```bash
-   curl -X GET "https://api.example.com/users/12345"
-   ```
-
-3. 管理后台: 登录后台 → 用户管理 → 搜索ID 12345
+// 步骤4: 创建Bitable任务记录
+const taskRecord = await feishu_bitable_create_record({
+  app_token: "your_app_token",
+  table_id: "your_table_id",
+  fields: {
+    "任务ID": `task-${Date.now()}`,
+    "任务标题": taskTitle,
+    "任务描述": taskDescription,
+    "复杂度": complexity,
+    "状态": "待处理",
+    "优先级": priority,
+    "分配Agent": selectedAgent,
+    "创建时间": new Date().toISOString(),
+    "进度百分比": 0
+  }
+});
 ```
 
-#### 3. 结果验证
-```markdown
-**验证要点**:
-- 确认操作步骤的准确性
-- 检查命令语法的正确性
-- 验证结果的完整性
+### 3. 任务分配与通知
+```javascript
+// 步骤5: 发送任务分配通知
+await message({
+  action: "send",
+  message: `🎯 任务分配通知
+任务: ${taskTitle}
+Agent: ${selectedAgent}
+复杂度: ${complexity}
+优先级: ${priority}
+预估时间: ${estimatedTime}
 
-**质量标准**:
-- 步骤清晰易懂
-- 命令可直接执行
-- 涵盖常见的获取方式
+任务详情: ${taskDescription}
+
+请及时处理并更新进度。`,
+  channel: "feishu",
+  target: notificationChatId
+});
+
+// 步骤6: 异步调用Agent执行任务
+await sessions_send({
+  sessionKey: `agent-${selectedAgent}`,
+  message: `请执行以下${complexity}任务：
+
+任务标题: ${taskTitle}
+任务描述: ${taskDescription}
+任务ID: ${taskId}
+
+请在完成后更新任务状态并提供结果文档。`
+});
 ```
 
-### L1模板示例
+## 🔄 状态更新模板
 
-#### 查询类任务模板
-```markdown
-## 任务: {任务描述}
+### Agent执行中状态更新
+```javascript
+// Agent开始执行时
+await feishu_bitable_update_record({
+  app_token: "your_app_token",
+  table_id: "your_table_id", 
+  record_id: taskRecordId,
+  fields: {
+    "状态": "进行中",
+    "更新时间": new Date().toISOString(),
+    "进度百分比": 10
+  }
+});
 
-### 执行方案
-1. **查询方式**: {具体的查询方法}
-2. **操作步骤**: 
-   - 步骤1: {详细步骤}
-   - 步骤2: {详细步骤}
-3. **预期结果**: {结果格式说明}
-
-### 相关工具
-- 工具1: {使用说明}
-- 工具2: {使用说明}
-
-### 注意事项
-- 注意点1
-- 注意点2
+// 进度更新通知
+await message({
+  action: "send",
+  message: `📊 任务进度更新
+任务: ${taskTitle}
+状态: 进行中
+进度: 10%
+Agent: ${selectedAgent}`,
+  channel: "feishu",
+  target: notificationChatId
+});
 ```
 
-## 📊 L2任务执行模板
+### 任务完成状态更新
+```javascript
+// Agent完成任务时
+await feishu_bitable_update_record({
+  app_token: "your_app_token",
+  table_id: "your_table_id",
+  record_id: taskRecordId,
+  fields: {
+    "状态": "已完成",
+    "更新时间": new Date().toISOString(),
+    "进度百分比": 100,
+    "结果文档": resultDocumentUrl,
+    "Token消耗": tokenUsage
+  }
+});
 
-### 适用场景
-- 专业分析、设计、编写类任务
-- 预计时间: 30-90分钟
-- 处理方式: 分配给专业Agent
+// 完成通知
+await message({
+  action: "send", 
+  message: `✅ 任务完成通知
+任务: ${taskTitle}
+Agent: ${selectedAgent}
+耗时: ${duration}
+结果: ${resultSummary}
 
-### 执行流程
-
-#### 1. 任务分析和Agent选择
-```markdown
-**任务分解**:
-- 分析任务的专业领域
-- 确定所需的专业技能
-- 评估任务的复杂程度
-
-**Agent选择**:
-- 根据agent-selection.md选择合适Agent
-- 考虑Agent的专业能力匹配度
-- 准备详细的任务描述
-
-**示例**:
-任务: "分析网站性能瓶颈并提出优化建议"
-分析: 需要技术架构和性能优化专业知识
-选择: architect (系统架构师)
+📄 结果文档: ${resultDocumentUrl}`,
+  channel: "feishu",
+  target: notificationChatId
+});
 ```
 
-#### 2. 任务分配
+## 🎨 Agent选择模板
+
+### 基于任务类型的选择逻辑
+```javascript
+function selectAgent(taskInfo) {
+  const { taskType, complexity, requiredSkills, domain } = taskInfo;
+  
+  // 技术架构类任务
+  if (taskType.includes("架构") || taskType.includes("设计")) {
+    return complexity === "L3" ? "architect" : "implementation-planner";
+  }
+  
+  // 文档编写类任务
+  if (taskType.includes("文档") || taskType.includes("说明")) {
+    return "doc-engineer";
+  }
+  
+  // 调研分析类任务
+  if (taskType.includes("调研") || taskType.includes("分析")) {
+    return "research-analyst";
+  }
+  
+  // UI/UX设计类任务
+  if (taskType.includes("界面") || taskType.includes("设计")) {
+    return "ui-designer";
+  }
+  
+  // 代码审查类任务
+  if (taskType.includes("审查") || taskType.includes("重构")) {
+    return "code-reviewer";
+  }
+  
+  // 默认选择
+  return complexity === "L3" ? "architect" : "task-orchestrator";
+}
+```
+
+### Agent能力矩阵
+```javascript
+const AGENT_CAPABILITIES = {
+  "architect": {
+    skills: ["系统架构", "技术选型", "性能优化"],
+    complexity: ["L2", "L3"],
+    domains: ["后端", "基础设施", "微服务"]
+  },
+  "doc-engineer": {
+    skills: ["技术文档", "API文档", "用户手册"],
+    complexity: ["L1", "L2"],
+    domains: ["文档", "知识管理", "飞书操作"]
+  },
+  "research-analyst": {
+    skills: ["市场调研", "技术分析", "竞品分析"],
+    complexity: ["L2", "L3"],
+    domains: ["调研", "分析", "报告"]
+  },
+  "ui-designer": {
+    skills: ["界面设计", "用户体验", "原型设计"],
+    complexity: ["L1", "L2", "L3"],
+    domains: ["前端", "设计", "用户体验"]
+  }
+};
+```
+
+## 📊 复杂度判断模板
+
+### L1 (简单) 任务模板
 ```markdown
-**分配消息模板**:
+特征:
+- 单一明确的操作
+- 标准化流程
+- 5-15分钟完成
+- 无需深度思考
+
+示例:
+- 创建标准文档
+- 简单配置修改
+- 基础信息查询
+- 常规格式转换
+
+Agent选择: 通用Agent或专业Agent
+```
+
+### L2 (中等) 任务模板
+```markdown
+特征:
+- 多步骤操作
+- 需要一定分析判断
+- 30分钟-2小时完成
+- 涉及多个知识点
+
+示例:
+- 技术方案设计
+- 复杂文档编写
+- 系统集成配置
+- 问题诊断分析
+
+Agent选择: 专业领域Agent
+```
+
+### L3 (复杂) 任务模板
+```markdown
+特征:
+- 需要深度分析
+- 创新性解决方案
+- 2小时以上完成
+- 可能需要多轮迭代
+
+示例:
+- 架构重构设计
+- 复杂算法实现
+- 全新产品设计
+- 深度技术调研
+
+Agent选择: 高级专家Agent
+```
+
+## 🚨 异常处理模板
+
+### 任务失败处理
+```javascript
+// 任务执行失败时
+await feishu_bitable_update_record({
+  app_token: "your_app_token",
+  table_id: "your_table_id",
+  record_id: taskRecordId,
+  fields: {
+    "状态": "失败",
+    "更新时间": new Date().toISOString(),
+    "任务描述": `${originalDescription}\n\n失败原因: ${errorReason}`
+  }
+});
+
+// 失败通知和重试建议
+await message({
+  action: "send",
+  message: `❌ 任务执行失败
+任务: ${taskTitle}
+Agent: ${selectedAgent}
+失败原因: ${errorReason}
+
+建议操作:
+1. 检查任务描述是否清晰
+2. 考虑降低复杂度或分解任务
+3. 更换合适的Agent
+4. 手动重试或寻求帮助`,
+  channel: "feishu",
+  target: notificationChatId
+});
+```
+
+### 超时处理
+```javascript
+// 任务超时检查
+function checkTaskTimeout(taskId, startTime, expectedDuration) {
+  const currentTime = Date.now();
+  const elapsed = currentTime - startTime;
+  
+  if (elapsed > expectedDuration * 1.5) {
+    // 发送超时提醒
+    message({
+      action: "send",
+      message: `⏰ 任务超时提醒
+任务ID: ${taskId}
+已用时: ${Math.round(elapsed / 60000)}分钟
+预期时间: ${Math.round(expectedDuration / 60000)}分钟
+
+请检查任务状态或考虑调整预期。`,
+      channel: "feishu",
+      target: notificationChatId
+    });
+  }
+}
+```
+
+## 📈 性能监控模板
+
+### Token使用统计
+```javascript
+// 记录Token消耗
+await feishu_bitable_update_record({
+  app_token: "your_app_token",
+  table_id: "your_table_id",
+  record_id: taskRecordId,
+  fields: {
+    "Token消耗": totalTokens,
+    "成本估算": totalTokens * tokenPrice
+  }
+});
+```
+
+### 执行时间统计
+```javascript
+// 记录执行时间
+const executionTime = endTime - startTime;
+await feishu_bitable_update_record({
+  app_token: "your_app_token", 
+  table_id: "your_table_id",
+  record_id: taskRecordId,
+  fields: {
+    "实际耗时": Math.round(executionTime / 60000), // 分钟
+    "效率评分": calculateEfficiencyScore(executionTime, complexity)
+  }
+});
+```
+
+## 🔧 工具调用最佳实践
+
+### 1. 错误处理
+```javascript
+try {
+  const result = await feishu_bitable_create_record(params);
+  return result;
+} catch (error) {
+  console.error("Bitable操作失败:", error);
+  // 降级处理：记录到本地或发送简单通知
+  await message({
+    action: "send",
+    message: `⚠️ 系统提醒：任务记录创建失败，请手动跟进任务: ${taskTitle}`,
+    channel: "feishu"
+  });
+}
+```
+
+### 2. 批量操作
+```javascript
+// 批量更新多个任务状态
+async function batchUpdateTasks(updates) {
+  for (const update of updates) {
+    try {
+      await feishu_bitable_update_record(update);
+      await new Promise(resolve => setTimeout(resolve, 100)); // 避免频率限制
+    } catch (error) {
+      console.error(`任务${update.record_id}更新失败:`, error);
+    }
+  }
+}
+```
+
+### 3. 配置验证
+```javascript
+// 验证必要配置
+function validateConfig() {
+  const requiredFields = ["app_token", "table_id", "notification_chat_id"];
+  const missingFields = requiredFields.filter(field => !config[field]);
+  
+  if (missingFields.length > 0) {
+    throw new Error(`缺少必要配置: ${missingFields.join(", ")}`);
+  }
+}
+```
+
 ---
-任务分配通知
 
-**任务标题**: {任务标题}
-**复杂度级别**: L2
-**预估时间**: 30-90分钟
-**任务描述**: {详细描述}
-
-**具体要求**:
-1. 要求1: {具体说明}
-2. 要求2: {具体说明}
-3. 要求3: {具体说明}
-
-**交付标准**:
-- 标准1: {验收标准}
-- 标准2: {验收标准}
-
-**截止时间**: {时间要求}
----
-
-**发送方式**: 使用sessions_send发送到Agent主会话
-```
-
-#### 3. 进度跟踪
-```markdown
-**跟踪要点**:
-- 确认Agent已接收任务
-- 定期检查执行进度
-- 及时响应Agent的问题
-
-**状态管理**:
-- 已分配: 任务已发送给Agent
-- 执行中: Agent正在处理
-- 已完成: Agent已提交结果
-- 需修改: 结果需要调整
-```
-
-#### 4. 结果整合
-```markdown
-**整合流程**:
-1. 接收Agent的执行结果
-2. 检查结果的完整性和质量
-3. 根据需要进行补充或修改
-4. 整理成用户友好的格式
-5. 可选: 同步到飞书工单系统
-```
-
-### L2模板示例
-
-#### 分析类任务模板
-```markdown
-## 任务分配: {任务标题}
-
-### 基本信息
-- **复杂度**: L2
-- **分配Agent**: {选择的Agent}
-- **预估时间**: 30-90分钟
-
-### 任务详情
-**背景**: {任务背景}
-**目标**: {期望达成的目标}
-**范围**: {任务范围和边界}
-
-### 具体要求
-1. **分析维度**: {需要分析的方面}
-2. **输出格式**: {期望的结果格式}
-3. **质量标准**: {质量要求}
-
-### 交付物
-- [ ] 分析报告
-- [ ] 建议方案
-- [ ] 实施计划 (如需要)
-
-### 验收标准
-- 分析全面深入
-- 建议具体可行
-- 格式清晰规范
-```
-
-## 📊 L3任务执行模板
-
-### 适用场景
-- 系统性、多领域协作任务
-- 预计时间: 2-6小时或更长
-- 处理方式: 多Agent协调执行
-
-### 执行流程
-
-#### 1. 任务分解
-```markdown
-**分解策略**:
-- 将复杂任务拆分为多个子任务
-- 识别子任务间的依赖关系
-- 确定执行顺序和并行可能性
-
-**示例**:
-任务: "设计完整的微服务电商平台架构"
-分解:
-1. 需求分析 (research-analyst)
-2. 架构设计 (architect)  
-3. 安全方案 (security-monitor)
-4. 实施规划 (implementation-planner)
-5. 文档编写 (doc-engineer)
-```
-
-#### 2. 协调者分配
-```markdown
-**协调策略**:
-- 指定task-orchestrator作为主协调者
-- 提供完整的任务分解和Agent分配方案
-- 建立沟通和协调机制
-
-**协调消息模板**:
----
-多Agent协调任务
-
-**项目**: {项目名称}
-**总体目标**: {项目目标}
-**复杂度**: L3
-**预估时间**: 2-6小时
-
-**子任务分配**:
-1. {子任务1} → {Agent1} (依赖: 无)
-2. {子任务2} → {Agent2} (依赖: 子任务1)
-3. {子任务3} → {Agent3} (依赖: 子任务1)
-
-**协调要求**:
-- 监控各子任务进度
-- 协调Agent间的沟通
-- 整合最终结果
-- 确保质量标准
-
-**里程碑**:
-- 里程碑1: {时间} - {目标}
-- 里程碑2: {时间} - {目标}
----
-```
-
-#### 3. 执行监控
-```markdown
-**监控机制**:
-- 定期检查各Agent的执行状态
-- 识别和解决依赖关系问题
-- 协调Agent间的信息共享
-- 及时调整执行计划
-
-**状态跟踪**:
-- 任务状态矩阵
-- 依赖关系图
-- 进度时间线
-- 质量检查点
-```
-
-#### 4. 结果整合
-```markdown
-**整合流程**:
-1. 收集各Agent的执行结果
-2. 检查结果的一致性和完整性
-3. 解决结果间的冲突或矛盾
-4. 整合成统一的最终方案
-5. 进行整体质量验收
-6. 生成项目总结报告
-```
-
-### L3模板示例
-
-#### 系统设计类任务模板
-```markdown
-## 多Agent协调项目: {项目名称}
-
-### 项目概览
-- **复杂度**: L3
-- **协调者**: task-orchestrator
-- **预估时间**: 2-6小时
-- **参与Agent**: {Agent列表}
-
-### 任务分解
-| 子任务 | 负责Agent | 依赖关系 | 预估时间 | 状态 |
-|--------|-----------|----------|----------|------|
-| {子任务1} | {Agent1} | 无 | 1小时 | 待开始 |
-| {子任务2} | {Agent2} | 子任务1 | 1.5小时 | 待开始 |
-| {子任务3} | {Agent3} | 子任务1 | 2小时 | 待开始 |
-
-### 协调计划
-**阶段1**: 并行执行独立子任务
-**阶段2**: 执行依赖性子任务
-**阶段3**: 结果整合和质量检查
-
-### 交付标准
-- [ ] 所有子任务完成
-- [ ] 结果整合无冲突
-- [ ] 整体方案可行
-- [ ] 文档完整规范
-
-### 风险控制
-- 风险1: {风险描述} → {应对措施}
-- 风险2: {风险描述} → {应对措施}
-```
-
-## 🔧 飞书集成模板
-
-### 状态同步模板
-```bash
-# 任务开始时
-python scripts/feishu-sync.py --task-id {task_id} --status started --title "{任务标题}"
-
-# 任务进行中
-python scripts/feishu-sync.py --task-id {task_id} --status in_progress --progress 50
-
-# 任务完成时
-python scripts/feishu-sync.py --task-id {task_id} --status completed --result "{结果摘要}"
-```
-
-### 通知模板
-```bash
-# 任务分配通知
-python scripts/feishu-notify.py --template task_assigned --data '{
-  "task": "{任务标题}",
-  "agent": "{Agent名称}",
-  "complexity": "{复杂度}",
-  "deadline": "{截止时间}"
-}'
-
-# 任务完成通知
-python scripts/feishu-notify.py --template task_completed --data '{
-  "task": "{任务标题}",
-  "result": "{结果摘要}",
-  "duration": "{执行时间}"
-}'
-```
-
-## 📈 模板优化
-
-### 反馈机制
-- 收集模板使用效果反馈
-- 分析执行成功率和质量
-- 识别模板的改进点
-
-### 版本迭代
-- v0.1.0: 增加更多任务类型模板
-- v0.2.0: 引入动态模板生成
-- v1.0.0: 基于AI的智能模板推荐
-
----
-
-**这些模板为Task Orchestrator v0.0.1提供标准化的执行流程，确保任务处理的一致性和质量。** 📋
+**这些模板提供了使用OpenClaw原生工具的标准化执行流程，确保Task Orchestrator的可靠性和一致性！** 🚀

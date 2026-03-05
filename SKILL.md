@@ -1,171 +1,184 @@
----
-name: task-orchestrator
-description: AI驱动的智能任务编排系统 v0.0.1 - 基于复杂度的多Agent协作平台
-homepage: https://github.com/Risker-C/openclaw-task-orchestrator
-metadata: {"clawdbot":{"emoji":"🎯","requires":{"bins":["python3"],"env":[]}}}
----
+# OpenClaw Task Orchestrator
 
-# Task Orchestrator v0.0.1 - AI驱动的任务编排系统
+**基于OpenClaw原生工具的智能任务编排系统**
 
-## 🎯 版本说明
+## 🎯 核心价值
 
-- **当前版本**: v0.0.1 (初始版本)
-- **状态**: 实验性质，功能验证阶段
-- **目标**: 验证.md文档驱动的设计理念
-- **适用**: 学习、参考、功能验证
+解决复杂任务的智能分解、Agent选择和执行编排问题，通过飞书Bitable提供可视化的任务管理界面。
 
-## 🚀 核心理念
+## 🚀 设计理念
 
-**从复杂代码到智能文档的架构革新**
+### 文档驱动架构
+- **纯.md文档设计**：所有逻辑通过markdown文档描述
+- **OpenClaw原生工具**：充分利用OpenClaw的feishu工具集
+- **零外部依赖**：不引入额外的Python包或服务
+- **AI驱动判断**：让AI来分析复杂度，而非复杂算法
 
-Task Orchestrator 是一个基于.md文档驱动的OpenClaw Skill，通过AI直接分析任务复杂度，自动选择最优的执行策略，实现智能化的多Agent任务编排。
-
-### ✨ 设计原则
-- **文档驱动**: 主要逻辑通过.md文档指导AI行为
-- **OpenClaw原生**: 充分利用OpenClaw现有AI能力和工具
-- **必要脚本**: 只有复杂技术实现才使用Python脚本
-- **简洁专一**: 专注于任务编排核心价值
-
-## 🎯 工作流程
-
-### 基本流程
+### 异步工单机制
 ```
-用户输入任务描述
-    ↓
-我读取 complexity-guide.md 判断复杂度
-    ↓
-根据 agent-selection.md 选择合适Agent
-    ↓
-使用 execution-templates.md 执行策略
-    ↓
-通过 sessions_send 分配任务给Agent
-    ↓
-可选：调用 scripts/feishu-sync.py 同步状态
+用户请求 → AI分析复杂度 → 选择Agent → 创建飞书工单 → 异步执行 → 状态同步
 ```
 
-### 复杂度分级执行策略
+## 🔧 核心功能
 
-#### L1 - 简单任务 (5-15分钟)
-- **特征**: 查询、获取、读取类操作
-- **处理**: 直接返回执行建议
-- **示例**: "查询用户信息"、"检查系统状态"
+### 1. 智能复杂度分析
+基于任务描述，AI自动判断复杂度等级：
+- **L1 (简单)**: 单一操作，5分钟内完成
+- **L2 (中等)**: 多步骤任务，需要一定思考
+- **L3 (复杂)**: 需要深度分析或多轮交互
 
-#### L2 - 专业任务 (30-90分钟)  
-- **特征**: 分析、设计、编写类任务
-- **处理**: 分配给单个专业Agent
-- **示例**: "分析性能瓶颈"、"编写技术文档"
+### 2. Agent智能选择
+根据任务类型和复杂度，选择最适合的Agent：
+- **architect**: 系统架构设计
+- **doc-engineer**: 文档编写和飞书操作
+- **research-analyst**: 技术调研
+- **ui-designer**: 界面设计
+- 等等...
 
-#### L3 - 复杂任务 (2-6小时)
-- **特征**: 系统性、多领域协作任务
-- **处理**: 多Agent协调执行
-- **示例**: "设计微服务架构"、"完整项目规划"
+### 3. 飞书Bitable集成
+利用OpenClaw的`feishu_bitable_*`工具实现：
+- 任务记录创建和更新
+- 状态实时同步
+- 进度可视化管理
+- 结果文档关联
+
+### 4. 消息通知系统
+使用OpenClaw的`message`工具：
+- 任务分配通知
+- 进度更新提醒
+- 完成结果推送
 
 ## 📋 使用方式
 
-### 直接对话使用
-```
-用户: "帮我分析网站性能问题"
-
-我的处理过程:
-1. 读取 complexity-guide.md → 判断为L2任务
-2. 读取 agent-selection.md → 选择architect
-3. 使用 sessions_send 分配任务
-4. 可选同步到飞书工单系统
+### 基本调用
+```markdown
+请使用Task Orchestrator分析并执行以下任务：
+[任务描述]
 ```
 
-### 配置飞书集成 (可选)
-```bash
-# 配置飞书应用信息
-参考 feishu-config.md 进行配置
+### 执行流程
+1. **复杂度分析**: AI分析任务复杂度和所需技能
+2. **Agent选择**: 根据分析结果选择最适合的Agent
+3. **工单创建**: 在飞书Bitable中创建任务记录
+4. **异步执行**: 通过sessions_send调用选定的Agent
+5. **状态同步**: 实时更新任务状态和进度
+6. **结果通知**: 完成后发送通知和结果文档
 
-# 同步任务状态
-python scripts/feishu-sync.py --task-id 123 --status completed
+## 🛠️ OpenClaw工具使用
 
-# 发送通知
-python scripts/feishu-notify.py --message "任务完成" --target chat_id
+### Bitable操作
+```javascript
+// 创建任务记录
+feishu_bitable_create_record({
+  app_token: "your_app_token",
+  table_id: "your_table_id", 
+  fields: {
+    "任务ID": task_id,
+    "任务标题": title,
+    "复杂度": complexity,
+    "状态": "待处理",
+    "分配Agent": selected_agent
+  }
+})
+
+// 更新任务状态
+feishu_bitable_update_record({
+  app_token: "your_app_token",
+  table_id: "your_table_id",
+  record_id: record_id,
+  fields: {
+    "状态": "进行中",
+    "进度百分比": 50
+  }
+})
 ```
 
-## 🔧 Agent选择规则
+### 消息通知
+```javascript
+// 发送任务通知
+message({
+  action: "send",
+  message: `🎯 任务分配通知\n任务: ${task_title}\nAgent: ${agent}\n复杂度: ${complexity}`,
+  target: "your_chat_id"
+})
+```
 
-基于任务内容自动选择最合适的Agent：
+### Agent调用
+```javascript
+// 异步调用Agent执行任务
+sessions_send({
+  sessionKey: agent_session_key,
+  message: `请执行以下${complexity}任务：\n${task_description}\n\n任务ID: ${task_id}`
+})
+```
 
-- **技术类任务** → architect, code-reviewer
-- **文档类任务** → doc-engineer  
-- **研究类任务** → research-analyst
-- **设计类任务** → ui-designer, architect
-- **安全类任务** → security-monitor
-- **管理类任务** → implementation-planner, resource-manager
-- **默认选择** → research-analyst
+## 📊 配置要求
 
-详细规则参见 `agent-selection.md`
+### OpenClaw飞书配置
+在OpenClaw配置文件中设置飞书账户：
 
-## 📊 OpenClaw集成
+```yaml
+channels:
+  feishu:
+    accounts:
+      main:
+        appId: "cli_xxxxxxxxxx"
+        appSecret: "your_app_secret"
+        domain: "feishu"  # 或 "lark"
+```
 
-### 使用的OpenClaw工具
-- **sessions_send**: Agent任务分配和通信
-- **agents_list**: 获取可用Agent列表
-- **subagents**: Agent状态监控和管理
-- **session_status**: 会话状态检查
+### Bitable表格字段
+确保Bitable表格包含以下字段：
+- 任务ID (单行文本)
+- 任务标题 (单行文本) 
+- 任务描述 (多行文本)
+- 复杂度 (单选: L1/L2/L3)
+- 状态 (单选: 待处理/进行中/已完成/失败)
+- 优先级 (单选: 低/中/高/紧急)
+- 分配Agent (单行文本)
+- 创建时间 (日期时间)
+- 更新时间 (日期时间)
+- 进度百分比 (数字: 0-100)
+- Token消耗 (数字)
+- 结果文档 (超链接)
 
-### 避免的问题
-- ❌ 不使用sessions_spawn (存在agentToAgent冲突)
-- ✅ 使用sessions_send (稳定可靠)
-- ✅ 基于OpenClaw原生能力，不重复造轮子
+## 🎯 最佳实践
 
-## 🎨 架构优势
+### 1. 任务描述规范
+- **明确目标**: 清楚描述期望的结果
+- **提供上下文**: 包含必要的背景信息
+- **指定约束**: 明确时间、资源等限制
 
-### v0.0.1 特点
-- **轻量化**: 主要逻辑通过文档，代码量最小
-- **AI驱动**: 真正的AI判断，不是规则匹配
-- **易维护**: 文档更新比代码修改更简单
-- **可扩展**: 新场景通过文档调整即可适应
+### 2. Agent选择策略
+- **技能匹配**: 根据任务类型选择专业Agent
+- **负载均衡**: 避免单个Agent过载
+- **备选方案**: 为关键任务准备备选Agent
 
-### 与传统方案对比
-| 方面 | 传统代码驱动 | Task Orchestrator v0.0.1 |
-|------|-------------|---------------------------|
-| 复杂度判断 | 复杂算法 | AI直接分析 |
-| 维护成本 | 高 | 低 |
-| 扩展性 | 需要代码更新 | 文档调整 |
-| 可读性 | 代码逻辑 | 自然语言 |
+### 3. 状态管理
+- **及时更新**: 确保状态变更及时同步到Bitable
+- **详细记录**: 记录关键节点和决策过程
+- **异常处理**: 对失败任务进行分析和重试
 
-## 📝 相关文档
+## 🔍 故障排除
 
-- **complexity-guide.md**: 详细的复杂度判断标准和示例
-- **agent-selection.md**: Agent选择规则和映射关系  
-- **execution-templates.md**: 不同复杂度的执行模板
-- **feishu-config.md**: 飞书集成配置说明
-- **examples.md**: 典型使用场景和示例
-- **CONTRIBUTING.md**: 开发规范和贡献指南
+### 常见问题
+1. **Bitable记录创建失败**: 检查app_token和table_id配置
+2. **Agent调用无响应**: 确认Agent会话状态和权限
+3. **消息通知失败**: 验证chat_id和机器人权限
 
-## ⚠️ 使用说明
+### 调试方法
+- 检查OpenClaw日志中的feishu工具调用记录
+- 验证飞书应用权限和配置
+- 测试单个工具调用是否正常
 
-### v0.0.1 限制
-- **实验版本**: 功能还在完善中
-- **文档驱动**: 主要依赖文档指导，可能需要调整
-- **反馈欢迎**: 需要用户使用反馈来改进
-- **持续迭代**: 会根据使用情况不断优化
+## 📚 相关文档
 
-### 适用场景
-- ✅ 学习AI驱动的任务编排理念
-- ✅ 验证.md文档驱动的架构设计
-- ✅ 简单到中等复杂度的任务编排
-- ❌ 生产环境的关键任务 (等待v1.0.0)
-
-## 🔮 版本规划
-
-- **v0.0.1**: 基础文档+脚本，验证设计理念 (当前)
-- **v0.1.0**: 功能稳定，用户反馈整合
-- **v0.2.0**: 性能优化，体验改进  
-- **v1.0.0**: 生产就绪，正式发布
-
-## 🤝 贡献
-
-欢迎贡献代码、文档或使用反馈！
-
-- **GitHub**: https://github.com/Risker-C/openclaw-task-orchestrator
-- **Issues**: 报告问题或提出建议
-- **贡献指南**: 参见 CONTRIBUTING.md
+- [复杂度判断指南](complexity-guide.md)
+- [Agent选择规则](agent-selection.md) 
+- [执行模板](execution-templates.md)
+- [飞书配置说明](feishu-config.md)
+- [使用示例](examples.md)
 
 ---
 
-**Task Orchestrator v0.0.1 - 让AI来判断，让编排更智能** 🎯
+**OpenClaw Task Orchestrator - 让任务编排更智能，让协作更高效！** 🚀

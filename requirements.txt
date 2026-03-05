@@ -1,4 +1,10 @@
-pydantic>=2.0.0
-python-dotenv>=1.0.0
-requests>=2.28.0
-pyyaml>=6.0
+# OpenClaw Task Orchestrator - 纯文档驱动设计
+# 
+# 本项目基于OpenClaw原生工具，不需要额外的Python依赖
+# 所有功能通过OpenClaw的feishu工具实现：
+# - feishu_bitable_* 工具用于Bitable操作
+# - message 工具用于消息通知
+# - OpenClaw配置系统用于账户管理
+#
+# 如果需要扩展功能，请优先考虑使用OpenClaw原生工具
+# 而不是添加外部依赖
