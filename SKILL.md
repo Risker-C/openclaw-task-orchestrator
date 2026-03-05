@@ -1,3 +1,8 @@
+---
+name: task-orchestrator
+description: 异步任务编排系统，解决主Agent阻塞问题。使用场景：(1) 复杂任务需要多Agent协作时，(2) 长耗时任务需要异步执行时，(3) 需要飞书工单可视化管理时，(4) 用户明确要求"使用Task Orchestrator"或"任务编排"时。支持L1/L2/L3复杂度分流，事件驱动执行，飞书Bitable状态同步。
+---
+
 # OpenClaw Task Orchestrator
 
 **基于 OpenClaw 原生工具的异步任务编排 Skill（文档驱动、单一版本维护）**
