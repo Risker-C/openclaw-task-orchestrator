@@ -1,0 +1,42 @@
+{
+  "name": "document_analysis",
+  "description": "分析文档内容并生成专业报告",
+  "phases": [
+    {
+      "id": "phase1_extraction",
+      "name": "Document Extraction",
+      "description": "提取文档内容和结构",
+      "agents": ["doc-engineer"],
+      "dependencies": [],
+      "timeout": 120,
+      "output_path": "shared/phase1-document/",
+      "success_criteria": ["document_data.md", "metadata.json"],
+      "task_template": "使用 feishu-strategic-agent skill 分析文档：{document_url}\n\n输出要求：\n1. 创建 {output_path}/document_data.md - 包含文档的完整内容和结构\n2. 创建 {output_path}/metadata.json - 包含文档元信息\n\n请确保输出文件格式正确，便于后续阶段使用。"
+    },
+    {
+      "id": "phase2_analysis",
+      "name": "Parallel Expert Analysis",
+      "description": "多专家并行分析",
+      "agents": ["research-analyst", "architect", "implementation-planner"],
+      "dependencies": ["phase1_extraction"],
+      "timeout": 180,
+      "output_path": "shared/phase2-analysis/",
+      "parallel": true,
+      "task_templates": {
+        "research-analyst": "基于 {input_path}/document_data.md 进行技术调研和竞品分析\n\n任务要求：\n1. 使用 tavily-search skill 进行网络调研\n2. 分析相关技术的成熟度和可行性\n3. 对比竞品方案的优劣\n4. 输出到：{output_path}/research-analysis.md\n\n请提供详细的调研报告和建议。",
+        "architect": "基于 {input_path}/document_data.md 进行架构设计分析\n\n任务要求：\n1. 分析技术架构的合理性\n2. 评估系统设计的可扩展性\n3. 识别潜在的技术风险\n4. 输出到：{output_path}/architecture-design.md\n\n请提供专业的架构分析和优化建议。",
+        "implementation-planner": "基于 {input_path}/document_data.md 制定实施计划\n\n任务要求：\n1. 分解实施步骤和里程碑\n2. 评估资源需求和时间安排\n3. 识别关键风险和依赖\n4. 输出到：{output_path}/implementation-plan.md\n\n请提供可执行的实施路线图。"
+      }
+    },
+    {
+      "id": "phase3_coordination",
+      "name": "Final Coordination",
+      "description": "整合所有分析结果",
+      "agents": ["task-orchestrator"],
+      "dependencies": ["phase2_analysis"],
+      "timeout": 60,
+      "output_path": "shared/phase3-final/",
+      "task_template": "整合以下分析结果生成最终报告：\n\n输入文件：\n- {input_path}/research-analysis.md\n- {input_path}/architecture-design.md\n- {input_path}/implementation-plan.md\n\n输出要求：\n1. 生成 {output_path}/final-report.md - 综合分析报告\n2. 生成 {output_path}/executive-summary.md - 执行摘要\n3. 生成 {output_path}/recommendations.md - 具体建议\n\n请确保报告结构清晰，结论明确。"
+    }
+  ]
+}

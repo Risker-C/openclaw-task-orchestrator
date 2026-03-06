@@ -1,0 +1,33 @@
+{
+  "name": "tech_evaluation",
+  "description": "评估技术方案的可行性和风险",
+  "phases": [
+    {
+      "id": "phase1_research",
+      "name": "Technology Research",
+      "agents": ["research-analyst"],
+      "dependencies": [],
+      "timeout": 180,
+      "output_path": "shared/phase1-research/",
+      "task_template": "调研技术：{tech_name}\n\n调研内容：\n1. 技术原理和核心特性\n2. 技术成熟度和稳定性\n3. 社区支持和生态系统\n4. 竞品对比和优势分析\n\n使用 tavily-search skill 进行深度调研\n输出到：{output_path}/research-report.md"
+    },
+    {
+      "id": "phase2_architecture",
+      "name": "Architecture Design",
+      "agents": ["architect"],
+      "dependencies": ["phase1_research"],
+      "timeout": 120,
+      "output_path": "shared/phase2-architecture/",
+      "task_template": "基于 {input_path}/research-report.md 设计技术架构\n\n设计内容：\n1. 系统架构图和组件设计\n2. 技术栈选择和集成方案\n3. 数据流和接口设计\n4. 部署和运维方案\n\n输出到：{output_path}/architecture-design.md"
+    },
+    {
+      "id": "phase3_planning",
+      "name": "Implementation Planning",
+      "agents": ["implementation-planner"],
+      "dependencies": ["phase2_architecture"],
+      "timeout": 120,
+      "output_path": "shared/phase3-planning/",
+      "task_template": "制定实施计划\n\n输入：\n- {input_path}/architecture-design.md\n\n输出内容：\n1. 实施路线图和时间安排\n2. 里程碑规划和交付物\n3. 资源需求和团队配置\n4. 风险识别和缓解措施\n\n输出到：{output_path}/implementation-plan.md"
+    }
+  ]
+}
