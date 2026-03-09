@@ -46,7 +46,7 @@ detect_issues() {
 check_failed_subagents() {
     local failed_count=0
     
-    for tracker in /tmp/task-orchestrator/*.tracker 2>/dev/null; do
+    for tracker in /tmp/task-orchestrator/*.tracker; do
         [[ -f "$tracker" ]] || continue
         
         local status=$(jq -r '.status // "unknown"' "$tracker" 2>/dev/null)
@@ -57,7 +57,7 @@ check_failed_subagents() {
             attempt_subagent_recovery "$task_id" "$tracker"
             ((failed_count++))
         fi
-    done
+    done 2>/dev/null
     
     return $failed_count
 }
@@ -237,7 +237,7 @@ check_timeout_tasks() {
     local timeout_count=0
     local current_time=$(date +%s)
     
-    for tracker in /tmp/task-orchestrator/*.tracker 2>/dev/null; do
+    for tracker in /tmp/task-orchestrator/*.tracker; do
         [[ -f "$tracker" ]] || continue
         
         local start_time=$(jq -r '.start_time // 0' "$tracker" 2>/dev/null)
@@ -250,7 +250,7 @@ check_timeout_tasks() {
             handle_timeout_task "$task_id" "$tracker"
             ((timeout_count++))
         fi
-    done
+    done 2>/dev/null
     
     return $timeout_count
 }
