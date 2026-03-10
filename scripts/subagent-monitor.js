@@ -9,8 +9,14 @@ const fs = require('fs');
 const path = require('path');
 const { exec } = require('child_process');
 
-const TRACKER_FILE = '/root/.openclaw/workspace/subagent-tracker.json';
-const NOTIFICATION_FILE = '/tmp/subagent-notifications.json';
+// 导入路径配置
+const { paths, initializePaths } = require(path.resolve(__dirname, '../src/config/paths.js'));
+
+// 初始化路径
+initializePaths();
+
+const TRACKER_FILE = paths.trackerFile;
+const NOTIFICATION_FILE = paths.notificationFile;
 
 // 时间格式化函数
 function formatDateTime(timestamp) {

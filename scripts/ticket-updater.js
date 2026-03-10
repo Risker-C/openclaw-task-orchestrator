@@ -12,7 +12,13 @@
 const fs = require('fs');
 const path = require('path');
 
-const UPDATE_HISTORY_FILE = '/root/.openclaw/workspace/ticket-update-history.json';
+// 导入路径配置
+const { paths, initializePaths } = require(path.resolve(__dirname, '../src/config/paths.js'));
+
+// 初始化路径
+initializePaths();
+
+const UPDATE_HISTORY_FILE = paths.ticketHistoryFile;
 
 class TicketUpdater {
   constructor() {
