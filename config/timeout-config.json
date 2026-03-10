@@ -1,0 +1,70 @@
+{
+  "global": 1800000,
+  "categories": {
+    "subagent": 1800000,
+    "task": 3600000,
+    "api": 60000,
+    "database": 10000,
+    "file": 5000
+  },
+  "tasks": {
+    "TASK-022": 3600000,
+    "TASK-023": 3600000,
+    "TASK-024": 3600000,
+    "TASK-025": 3600000,
+    "TASK-026": 3600000,
+    "TASK-999": 5400000
+  },
+  "agents": {
+    "implementation-planner": 3600000,
+    "code-reviewer": 1800000,
+    "architect": 1800000,
+    "test-agent": 2700000
+  },
+  "rules": [
+    {
+      "name": "长时间运行的任务",
+      "conditions": [
+        {
+          "field": "taskType",
+          "operator": "equals",
+          "value": "long-running"
+        }
+      ],
+      "timeout": 7200000
+    },
+    {
+      "name": "快速API调用",
+      "conditions": [
+        {
+          "field": "operationType",
+          "operator": "equals",
+          "value": "api"
+        }
+      ],
+      "timeout": 30000
+    },
+    {
+      "name": "数据库操作",
+      "conditions": [
+        {
+          "field": "operationType",
+          "operator": "equals",
+          "value": "database"
+        }
+      ],
+      "timeout": 10000
+    },
+    {
+      "name": "测试规则",
+      "conditions": [
+        {
+          "field": "taskType",
+          "operator": "equals",
+          "value": "test"
+        }
+      ],
+      "timeout": 900000
+    }
+  ]
+}
