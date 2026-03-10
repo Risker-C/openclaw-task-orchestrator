@@ -1,0 +1,11 @@
+category,metric,baseline,target,improvement_pct,direction
+system,avg_task_execution_time,100,77.5,-22.5,lower_better
+system,bitable_sync_latency,100,30,-70.0,lower_better
+system,agent_scheduling_latency,100,50,-50.0,lower_better
+system,log_io_overhead,100,40,-60.0,lower_better
+system,system_throughput,100,160,60.0,higher_better
+system,error_rate,100,40,-60.0,lower_better
+memory,accuracy,36.8,81.1,120.4,higher_better
+memory,token_consumption_index,100,41,-59.0,lower_better
+memory,retrieval_latency_p95_ms,500,350,-30.0,lower_better
+memory,cross_session_persistence_success_rate,99.0,99.8,0.8,higher_better
