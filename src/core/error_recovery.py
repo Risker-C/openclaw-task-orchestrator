@@ -35,6 +35,9 @@ class ErrorType(str, Enum):
     PERMANENT = "permanent"        # 永久错误（不可重试）
     TIMEOUT = "timeout"            # 超时错误
     RESOURCE_EXHAUSTED = "resource_exhausted"  # 资源耗尽
+    PERMISSION_DENIED = "permission_denied"    # 权限不足
+    PATH_NOT_FOUND = "path_not_found"      # 路径未找到
+    TOOL_FAILED = "tool_failed"            # 工具调用失败
     UNKNOWN = "unknown"            # 未知错误
 
 
@@ -229,24 +232,38 @@ class RetryManager:
         return delay
     
     def _classify_error(self, error: Exception) -> ErrorType:
-        """分类错误类型"""
+        """分类错误类型 - 增强版本"""
         error_msg = str(error).lower()
         
-        # 临时错误关键词
-        transient_keywords = ["timeout", "connection", "temporarily", "unavailable", "try again"]
+        # 路径与权限错误
+        if "permission denied" in error_msg or "eacces" in error_msg:
+            return ErrorType.PERMISSION_DENIED
+        if "no such file or directory" in error_msg or "enoent" in error_msg:
+            return ErrorType.PATH_NOT_FOUND
+            
+        # 超时错误
+        if "timeout" in error_msg or "etimedout" in error_msg:
+            return ErrorType.TIMEOUT
+            
+        # 临时网络错误
+        transient_keywords = ["connection", "temporarily", "unavailable", "try again", "econnreset", "econnrefused"]
         if any(keyword in error_msg for keyword in transient_keywords):
             return ErrorType.TRANSIENT
         
-        # 资源耗尽关键词
-        resource_keywords = ["resource", "quota", "limit", "exhausted", "memory"]
+        # 资源耗尽
+        resource_keywords = ["resource", "quota", "limit", "exhausted", "memory", "enospc"]
         if any(keyword in error_msg for keyword in resource_keywords):
             return ErrorType.RESOURCE_EXHAUSTED
         
-        # 永久错误关键词
+        # 永久错误
         permanent_keywords = ["invalid", "not found", "unauthorized", "forbidden", "bad request"]
         if any(keyword in error_msg for keyword in permanent_keywords):
             return ErrorType.PERMANENT
         
+        # 工具调用失败
+        if "tool" in error_msg or "failed to call" in error_msg:
+            return ErrorType.TOOL_FAILED
+            
         return ErrorType.UNKNOWN
 
 
